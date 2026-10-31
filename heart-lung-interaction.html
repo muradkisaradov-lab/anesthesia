@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Сердечно-лёгочное взаимодействие</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: clinical workstation — schematic chest on the left, step-by-step logic on the right, a dark bedside monitor underneath. */
+:root{
+  --bg:#eef2f3; --surface:#ffffff; --fg:#14222b; --muted:#5b6e78; --line:#cdd8dc;
+  --accent:#0d7380; --accent-soft:#d6ecee;
+  --venous:#4f6fa8; --arterial:#c23a45; --lung:#f2c9c4; --lung-edge:#d99b94;
+  --insp:#0f9cad; --exp:#8a5cd6; --thorax:#f7fafb;
+  --f-display:"Unbounded","Golos Text",system-ui,sans-serif;
+  --f-body:"Golos Text",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Consolas,monospace;
+  /* monitor: deliberately dark in both themes */
+  --mon-bg:#061015; --mon-grid:#15303a; --mon-text:#9fbcc5; --mon-dim:#56717b;
+  --mon-paw:#f2d64b; --mon-abp:#ff5a5f; --mon-insp:#38d3e3; --mon-exp:#b59cff;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0c1519; --surface:#121f25; --fg:#e3ecef; --muted:#8fa4ad; --line:#24363e;
+  --accent:#4cc3cf; --accent-soft:#16343a;
+  --venous:#7e9be0; --arterial:#ec6670; --lung:#4a2f33; --lung-edge:#8a5560;
+  --insp:#38d3e3; --exp:#b59cff; --thorax:#101b20; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0c1519; --surface:#121f25; --fg:#e3ecef; --muted:#8fa4ad; --line:#24363e;
+  --accent:#4cc3cf; --accent-soft:#16343a;
+  --venous:#7e9be0; --arterial:#ec6670; --lung:#4a2f33; --lung-edge:#8a5560;
+  --insp:#38d3e3; --exp:#b59cff; --thorax:#101b20; color-scheme:dark}
+
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 48px;display:grid;gap:20px}
+header{display:grid;gap:8px}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+h1{font-family:var(--f-display);font-weight:700;font-size:clamp(22px,3.4vw,34px);line-height:1.15;margin:0;text-wrap:balance}
+.lede{color:var(--muted);max-width:70ch;margin:0}
+.grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:grid;gap:12px;min-width:0}
+h2{font-family:var(--f-display);font-weight:500;font-size:15px;margin:0;letter-spacing:.01em}
+.readout{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-family:var(--f-mono);font-size:13px;font-variant-numeric:tabular-nums}
+.pill{padding:4px 10px;border-radius:999px;border:1px solid var(--line);white-space:nowrap}
+.phase{font-weight:600;letter-spacing:.06em;color:#fff;border:none;min-width:84px;text-align:center}
+.phase.insp{background:var(--insp)} .phase.exp{background:var(--exp)}
+:root:not([data-theme="light"]) .phase{color:#fff}
+canvas{display:block;width:100%}
+#heart{aspect-ratio:600/460;max-width:100%}
+.transport{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+button,select{font:inherit;font-size:14px;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--surface);font-weight:600}
+.steps{display:grid;gap:10px;counter-reset:s}
+.step{border:1px solid var(--line);border-radius:10px;padding:10px 12px 10px 44px;position:relative;transition:background .25s,border-color .25s;opacity:.62}
+.step::before{counter-increment:s;content:counter(s);position:absolute;left:12px;top:10px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-family:var(--f-mono);font-size:12px;font-weight:600;border:1px solid var(--line);color:var(--muted)}
+.step h3{margin:0 0 4px;font-size:14px;font-weight:600}
+.step p{margin:0;font-size:13.5px;color:var(--muted)}
+.step.on{opacity:1;border-color:var(--accent);background:var(--accent-soft)}
+.step.on::before{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.step.on p{color:var(--fg)}
+.sliders{display:grid;gap:10px}
+.sl{display:grid;grid-template-columns:minmax(0,1fr) 72px;gap:4px 10px;align-items:center}
+.sl label{font-size:13.5px}
+.sl output{font-family:var(--f-mono);font-size:13px;text-align:right;font-variant-numeric:tabular-nums}
+.sl input{grid-column:1/-1;width:100%;accent-color:var(--accent)}
+.presets{display:flex;flex-wrap:wrap;gap:6px}
+.presets button{font-size:13px;padding:5px 10px}
+.monitor{background:var(--mon-bg);border-radius:14px;padding:12px;display:grid;gap:10px;border:1px solid var(--line)}
+.monitor h2{color:var(--mon-text);font-family:var(--f-mono);font-weight:600;font-size:12px;letter-spacing:.1em;text-transform:uppercase}
+#mon{height:420px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--mon-text)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+.warn{font-size:13px;color:var(--arterial);margin:0}
+.formulas{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.f{display:grid;gap:8px;align-content:start}
+.eq{font-family:var(--f-mono);font-size:15px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.frac{display:inline-grid;text-align:center}
+.frac span:first-child{border-bottom:1.5px solid currentColor;padding:0 4px 2px}
+.frac span:last-child{padding:2px 4px 0}
+.f p{margin:0;font-size:13.5px;color:var(--muted)}
+.live{font-family:var(--f-mono);color:var(--accent);font-weight:600}
+.notes{font-size:14px;color:var(--muted);max-width:75ch}
+.notes ul{margin:6px 0 0;padding-left:20px;display:grid;gap:4px}
+@media (prefers-reduced-motion:reduce){.step{transition:none}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">ИВЛ · гемодинамика · модель</div>
+    <h1>Сердечно-лёгочное взаимодействие при вдохе с положительным давлением</h1>
+    <p class="lede">Схема и монитор работают синхронно. Каждое сокращение ПЖ окрашено по фазе дыхания, в которую оно произошло. Эта же «порция» крови проходит малый круг и через несколько циклов выбрасывается левым желудочком, сохраняя свой цвет.</p>
+  </header>
+
+  <div class="grid">
+    <section class="card" aria-label="Схема">
+      <div class="readout" id="readout">
+        <span class="pill phase insp" id="phaseChip">ВДОХ</span>
+        <span class="pill" id="rPaw">Paw — </span>
+        <span class="pill" id="rPpl">Ppl — </span>
+        <span class="pill" id="rBeats">— сокращений за вдох/выдох</span>
+      </div>
+      <canvas id="heart" role="img" aria-label="Схема грудной клетки: лёгкие, полые вены, камеры сердца, малый круг и аорта с движущимися порциями крови"></canvas>
+      <div class="transport">
+        <button class="primary" id="play" type="button">Пауза</button>
+        <label for="speed" style="font-size:13.5px;color:var(--muted)">Скорость</label>
+        <select id="speed">
+          <option value="0.25">0,25×</option>
+          <option value="0.5" selected>0,5×</option>
+          <option value="1">1×</option>
+        </select>
+      </div>
+    </section>
+
+    <section class="card" aria-label="Пошаговое объяснение">
+      <h2>Что происходит сейчас</h2>
+      <div class="steps">
+        <div class="step" data-s="1"><h3>Вдох: левые отделы получают больше</h3>
+          <p>Раздуваемые лёгкие выжимают кровь из лёгочных капилляров и вен в ЛП, преднагрузка ЛЖ ↑. Рост Ppl снижает трансмуральное давление ЛЖ, постнагрузка ЛЖ ↓. Итог: УО ЛЖ ↑ (Δup).</p></div>
+        <div class="step" data-s="2"><h3>Вдох: правые отделы получают меньше</h3>
+          <p>Рост Ppl повышает давление в ПП и сдавливает полые вены. Градиент венозного возврата (Pms − Pпп) падает, преднагрузка ПЖ ↓. Раздутые альвеолы сжимают капилляры, ЛСС и постнагрузка ПЖ ↑. Итог: УО ПЖ ↓.</p></div>
+        <div class="step" data-s="3"><h3>Транзит через малый круг</h3>
+          <p>Уменьшенные порции крови от ПЖ идут через лёгочное русло 3–5 сердечных циклов. Пока они в пути, ЛЖ продолжает выбрасывать кровь, полученную до вдоха.</p></div>
+        <div class="step" data-s="4"><h3>Выдох: провал УО ЛЖ</h3>
+          <p>«Вдоховые» малые порции доходят до ЛЖ. Преднагрузка ЛЖ ↓, УО и пульсовое давление минимальны (Δdown). При обычной ЧД это приходится на выдох.</p></div>
+      </div>
+    </section>
+  </div>
+
+  <section class="monitor" aria-label="Монитор">
+    <h2>Монитор · развёртка 12 с</h2>
+    <canvas id="mon" role="img" aria-label="Кривые давления в дыхательных путях, ударного объёма ПЖ и ЛЖ по сокращениям и артериального давления"></canvas>
+    <div class="legend">
+      <span><i class="sw" style="background:rgba(56,211,227,.22);border:1px solid var(--mon-insp)"></i>фаза вдоха</span>
+      <span><i class="sw" style="background:var(--mon-insp)"></i>выброс ПЖ во время вдоха</span>
+      <span><i class="sw" style="background:var(--mon-exp)"></i>выброс ПЖ во время выдоха</span>
+      <span>Столбик ЛЖ окрашен по сокращению ПЖ, которое его наполнило</span>
+    </div>
+  </section>
+
+  <div class="grid">
+    <section class="card" aria-label="Параметры">
+      <h2>Параметры модели</h2>
+      <div class="presets">
+        <button type="button" data-preset="norm">Норма</button>
+        <button type="button" data-preset="hypo">Гиповолемия</button>
+        <button type="button" data-preset="press">Высокое давление вдоха</button>
+        <button type="button" data-preset="rr">Высокая ЧД</button>
+      </div>
+      <div class="sliders">
+        <div class="sl"><label for="hr">ЧСС, уд/мин</label><output id="hrO"></output><input id="hr" type="range" min="50" max="180" step="1"></div>
+        <div class="sl"><label for="rr">ЧД, вдох/мин (I:E = 1:2)</label><output id="rrO"></output><input id="rr" type="range" min="6" max="40" step="1"></div>
+        <div class="sl"><label for="pinsp">Пиковое давление вдоха, см H₂O (PEEP 5)</label><output id="pinspO"></output><input id="pinsp" type="range" min="8" max="30" step="1"></div>
+        <div class="sl"><label for="vol">Дефицит объёма (0 норма → 1 выраженная гиповолемия)</label><output id="volO"></output><input id="vol" type="range" min="0" max="1" step="0.05"></div>
+        <div class="sl"><label for="ntr">Время транзита через лёгкие, сердечных циклов</label><output id="ntrO"></output><input id="ntr" type="range" min="2" max="6" step="1"></div>
+      </div>
+      <p class="warn" id="ratioWarn" hidden></p>
+    </section>
+
+    <section class="card" aria-label="Формулы">
+      <h2>Формулы</h2>
+      <div class="formulas">
+        <div class="f">
+          <div class="eq">VR = <span class="frac"><span>P<sub>ms</sub> − P<sub>пп</sub></span><span>R<sub>вв</sub></span></span></div>
+          <p>Венозный возврат. На вдохе P<sub>пп</sub> растёт вместе с Ppl, градиент уменьшается.</p>
+        </div>
+        <div class="f">
+          <div class="eq">P<sub>тм ЛЖ</sub> = P<sub>сист</sub> − P<sub>pl</sub></div>
+          <p>Постнагрузка ЛЖ. Рост Ppl уменьшает трансмуральное давление. Сейчас Ppl ≈ <span class="live" id="fPpl">—</span>.</p>
+        </div>
+        <div class="f">
+          <div class="eq">PPV = <span class="frac"><span>PP<sub>max</sub> − PP<sub>min</sub></span><span>(PP<sub>max</sub> + PP<sub>min</sub>) / 2</span></span> × 100%</div>
+          <p>По последнему дыхательному циклу: PP<sub>max</sub> <span class="live" id="fPPmax">—</span>, PP<sub>min</sub> <span class="live" id="fPPmin">—</span>, PPV = <span class="live" id="fPPV">—</span></p>
+        </div>
+        <div class="f">
+          <div class="eq">SVV = <span class="frac"><span>SV<sub>max</sub> − SV<sub>min</sub></span><span>SV<sub>сред</sub></span></span> × 100%</div>
+          <p>Вариабельность УО ЛЖ за тот же цикл: <span class="live" id="fSVV">—</span></p>
+        </div>
+      </div>
+      <div class="notes">
+        <strong style="color:var(--fg)">Когда PPV/SVV отражают ответ на инфузию</strong>
+        <ul>
+          <li>Контролируемая ИВЛ без спонтанных попыток дыхания.</li>
+          <li>Достаточный дыхательный объём: при малом ДО колебания Ppl слабые и PPV занижена.</li>
+          <li>Синусовый ритм, закрытая грудная клетка.</li>
+          <li>ЧСС/ЧД больше ~3,6. При высокой ЧД сокращений за цикл слишком мало, и провал может сместиться на вдох (кнопка «Высокая ЧД»).</li>
+          <li>Пороговые значения PPV у собак и кошек различаются между исследованиями, ориентируйтесь на тренд и клинику.</li>
+        </ul>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+const TI = 1/3;           // доля вдоха (I:E = 1:2)
+const PEEP = 5;
+const WIN = 12;           // окно монитора, с
+const P = {hr:90, rr:12, pinsp:15, vol:0.3, N:4, speed:0.5, playing:true};
+const PRESETS = {
+  norm:{hr:90, rr:12, pinsp:15, vol:0.1, N:4},
+  hypo:{hr:125, rr:12, pinsp:15, vol:0.85, N:4},
+  press:{hr:90, rr:12, pinsp:28, vol:0.35, N:4},
+  rr:{hr:90, rr:30, pinsp:15, vol:0.6, N:4}
+};
+const S = {t:0, resp:0, nextBeat:0.2, lastBeatT:-1, curPP:38, prevPP:38, rv:[], lv:[], samples:[], pulm:[], aorta:[], vc:[], vcAcc:0};
+
+/* ---------- модель ---------- */
+const g = () => (P.pinsp - PEEP) / 10;
+function pNorm(ph){
+  if (ph < TI){ const x = ph/TI; return (1-Math.exp(-3.5*x))/(1-Math.exp(-3.5)); }
+  return Math.exp(-(ph-TI)/0.07);
+}
+const phase = () => S.resp % 1;
+const pNow = () => pNorm(phase());
+const kV = () => (0.035 + 0.30*P.vol) * g();
+const rvSVat = p => Math.max(0.35, 1 - (kV() + 0.02*g())*p);
+const lvBoost = p => 1 + 0.06*g()*p;
+const paw = p => PEEP + (P.pinsp-PEEP)*p;
+const ppl = p => -3 + 0.32*(paw(p)-PEEP);
+function wave(f){
+  if (f < 0) f = 0;
+  if (f < 0.12) return Math.sin(f/0.12*Math.PI/2);
+  let v = Math.exp(-(f-0.12)*2.6);
+  v -= 0.07*Math.exp(-Math.pow((f-0.36)/0.025,2));
+  v += 0.04*Math.exp(-Math.pow((f-0.43)/0.04,2));
+  return v;
+}
+const decay = f => Math.exp(-(f-0.12)*2.6);
+
+function doBeat(){
+  const p = pNow(), insp = phase() < TI, Tb = 60/P.hr;
+  const rv = {t:S.t, sv:rvSVat(p), insp};
+  S.rv.push(rv);
+  const src = S.rv[S.rv.length-1-P.N] || {t:S.t, sv:1, insp:false};
+  const sv = src.sv * lvBoost(p);
+  const lv = {t:S.t, sv, pp:38*sv, srcInsp:src.insp, srcT:src.t};
+  S.lv.push(lv);
+  S.prevPP = S.curPP; S.curPP = lv.pp; S.lastBeatT = S.t;
+  const n = Math.round(8*rv.sv);
+  for (let k=0;k<n;k++) S.pulm.push({e:S.t+Math.random()*0.12, d:P.N*Tb, path:k%2, j:Math.random()-0.5, insp});
+  const m = Math.round(7*sv);
+  for (let k=0;k<m;k++) S.aorta.push({e:S.t+Math.random()*0.12, d:0.75, j:Math.random()-0.5, insp:src.insp});
+  const cut = S.t - 45;
+  while (S.rv.length > P.N+8 && S.rv[0].t < cut) S.rv.shift();
+  while (S.lv.length > 8 && S.lv[0].t < cut) S.lv.shift();
+}
+
+function step(dt){
+  S.t += dt; S.resp += dt*P.rr/60;
+  while (S.t >= S.nextBeat){ doBeat(); S.nextBeat += 60/P.hr; }
+  const p = pNow(), Tb = 60/P.hr;
+  const f = S.lastBeatT < 0 ? 0.5 : (S.t - S.lastBeatT)/Tb;
+  const abp = 56 + 3*g()*p + Math.max(S.curPP*wave(f), S.prevPP*decay(1+f));
+  S.samples.push({t:S.t, paw:paw(p), abp, insp:phase()<TI});
+  const vr = Math.max(0.25, 1 - 0.5*g()*p*(0.4+P.vol));
+  S.vcAcc += dt*16*vr;
+  while (S.vcAcc >= 1){ S.vcAcc -= 1; S.vc.push({e:S.t, d:1.5, path:Math.random()<0.6?0:1, j:Math.random()-0.5}); }
+}
+function prune(){
+  const t = S.t;
+  while (S.samples.length && S.samples[0].t < t-WIN-0.5) S.samples.shift();
+  S.pulm = S.pulm.filter(q => t-q.e < q.d);
+  S.aorta = S.aorta.filter(q => t-q.e < q.d);
+  S.vc = S.vc.filter(q => t-q.e < q.d);
+}
+function simulate(sec){
+  const h = 1/240; let left = sec;
+  while (left > 1e-9){ const d = Math.min(h,left); step(d); left -= d; }
+  prune();
+}
+
+/* ---------- геометрия схемы (600×460) ---------- */
+function catmull(pts, seg){
+  const out = [];
+  for (let i=0;i<pts.length-1;i++){
+    const p0=pts[Math.max(0,i-1)], p1=pts[i], p2=pts[i+1], p3=pts[Math.min(pts.length-1,i+2)];
+    for (let s=0;s<seg;s++){
+      const t=s/seg, t2=t*t, t3=t2*t;
+      out.push([
+        0.5*((2*p1[0])+(-p0[0]+p2[0])*t+(2*p0[0]-5*p1[0]+4*p2[0]-p3[0])*t2+(-p0[0]+3*p1[0]-3*p2[0]+p3[0])*t3),
+        0.5*((2*p1[1])+(-p0[1]+p2[1])*t+(2*p0[1]-5*p1[1]+4*p2[1]-p3[1])*t2+(-p0[1]+3*p1[1]-3*p2[1]+p3[1])*t3)
+      ]);
+    }
+  }
+  out.push(pts[pts.length-1]);
+  const cum=[0];
+  for (let i=1;i<out.length;i++) cum.push(cum[i-1]+Math.hypot(out[i][0]-out[i-1][0], out[i][1]-out[i-1][1]));
+  return {pts:out, cum, len:cum[cum.length-1]};
+}
+function at(path,u){
+  u = Math.min(1,Math.max(0,u));
+  const L = u*path.len, c = path.cum;
+  let i = 1; while (i < c.length-1 && c[i] < L) i++;
+  const a = path.pts[i-1], b = path.pts[i], seg = (c[i]-c[i-1])||1, k = (L-c[i-1])/seg;
+  const dx=b[0]-a[0], dy=b[1]-a[1], n=Math.hypot(dx,dy)||1;
+  return {x:a[0]+dx*k, y:a[1]+dy*k, nx:-dy/n, ny:dx/n};
+}
+const PATHS = {
+  vc:[catmull([[150,470],[165,405],[190,335],[228,290]],12), catmull([[212,-10],[218,90],[226,190],[232,262]],12)],
+  pulm:[
+    catmull([[280,352],[297,300],[300,238],[272,202],[205,165],[130,132],[92,180],[112,240],[170,244],[240,228],[305,232],[345,262]],10),
+    catmull([[280,352],[297,300],[300,238],[330,202],[400,162],[470,132],[508,180],[488,238],[440,250],[400,252],[372,264]],10)
+  ],
+  aorta: catmull([[352,362],[410,368],[455,398],[492,470]],12)
+};
+const CH = {ra:{x:240,y:275,w:70,h:60,l:"ПП"}, la:{x:360,y:275,w:70,h:60,l:"ЛП"}, rv:{x:258,y:347,w:86,h:76,l:"ПЖ"}, lv:{x:346,y:351,w:92,h:84,l:"ЛЖ"}};
+
+/* ---------- темы ---------- */
+let T = {};
+function readTokens(){
+  const cs = getComputedStyle(document.documentElement);
+  ["bg","surface","fg","muted","line","accent","venous","arterial","lung","lung-edge","insp","exp","thorax",
+   "mon-bg","mon-grid","mon-text","mon-dim","mon-paw","mon-abp","mon-insp","mon-exp"].forEach(k=>T[k]=cs.getPropertyValue("--"+k).trim());
+}
+readTokens();
+try{ matchMedia("(prefers-color-scheme: dark)").addEventListener("change", readTokens); }catch(e){}
+new MutationObserver(readTokens).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+
+/* ---------- canvas setup ---------- */
+const heart = document.getElementById("heart"), hctx = heart.getContext("2d");
+const mon = document.getElementById("mon"), mctx = mon.getContext("2d");
+let dpr = 1, hScale = 1, mW = 600, mH = 420;
+function resize(){
+  dpr = Math.min(2, window.devicePixelRatio||1);
+  const hw = heart.clientWidth || 600; hScale = hw/600;
+  heart.width = Math.round(hw*dpr); heart.height = Math.round(hw*460/600*dpr);
+  mW = mon.clientWidth || 600; mH = mW < 520 ? 400 : 420; mon.style.height = mH+"px";
+  mon.width = Math.round(mW*dpr); mon.height = Math.round(mH*dpr);
+}
+new ResizeObserver(()=>{resize(); draw();}).observe(heart);
+new ResizeObserver(()=>{resize(); draw();}).observe(mon);
+
+function rr(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+function strokeRange(ctx,path,u0,u1,color,width){
+  const i0 = Math.floor(u0*(path.pts.length-1)), i1 = Math.ceil(u1*(path.pts.length-1));
+  ctx.beginPath(); ctx.moveTo(path.pts[i0][0],path.pts[i0][1]);
+  for (let i=i0+1;i<=i1;i++) ctx.lineTo(path.pts[i][0],path.pts[i][1]);
+  ctx.strokeStyle=color; ctx.lineWidth=width; ctx.lineCap="round"; ctx.lineJoin="round"; ctx.stroke();
+}
+function alpha(hex,a){
+  if(!hex||hex[0]!=="#") return hex;
+  const n=parseInt(hex.slice(1),16); return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`;
+}
+function fs(){ return Math.max(10.5, 11.5/hScale); }
+function tag(ctx,x,y,text,color){
+  const f = fs(); ctx.font = `600 ${f}px "Golos Text",system-ui,sans-serif`;
+  const w = ctx.measureText(text).width + f*1.2, h = f*1.8;
+  rr(ctx,x-w/2,y-h/2,w,h,h/2); ctx.fillStyle=T.surface; ctx.fill(); ctx.strokeStyle=color; ctx.lineWidth=1.5; ctx.stroke();
+  ctx.fillStyle=color; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(text,x,y+0.5);
+}
+
+/* ---------- состояние фаз ---------- */
+function activeSteps(){
+  const set = new Set(), insp = phase() < TI;
+  const last = S.lv[S.lv.length-1];
+  if (insp){ set.add(1); set.add(2); }
+  if (last && last.srcInsp) set.add(4);
+  if (!insp && !set.has(4)) set.add(3);
+  return set;
+}
+
+/* ---------- схема ---------- */
+function drawHeart(){
+  const c = hctx; c.setTransform(dpr*hScale,0,0,dpr*hScale,0,0); c.clearRect(0,0,600,460);
+  const p = pNow(), gg = Math.min(g(),2.2), ph = phase(), insp = ph < TI, act = activeSteps();
+  const Tb = 60/P.hr, f = S.lastBeatT<0?0.5:(S.t-S.lastBeatT)/Tb;
+
+  // грудная полость
+  rr(c,30,22,540,418,70); c.fillStyle=T.thorax; c.fill();
+  c.lineWidth = 2 + 4*p*gg/2; c.strokeStyle = insp ? alpha(T.insp,0.55+0.4*p) : T.line; c.stroke();
+  c.font = `500 ${fs()}px "JetBrains Mono",monospace`; c.fillStyle=T.muted; c.textAlign="left"; c.textBaseline="top";
+  c.fillText(`Ppl ≈ ${ppl(p).toFixed(1)} см H₂O`, 52, 34);
+
+  // лёгкие
+  const inf = 1 + 0.13*p*gg;
+  [[150,180],[450,180]].forEach(([x,y],i)=>{
+    c.beginPath(); c.ellipse(x,y,92*inf,112*inf,0,0,Math.PI*2);
+    c.fillStyle=alpha(T.lung,0.85); c.fill(); c.strokeStyle=T["lung-edge"]; c.lineWidth=1.5; c.stroke();
+    c.fillStyle=T.muted; c.textAlign="center"; c.textBaseline="alphabetic";
+    c.font = `500 ${fs()}px "Golos Text",sans-serif`;
+    c.fillText(i?"лев. лёгкое":"пр. лёгкое", x, y-112*inf+fs()*1.6);
+  });
+
+  // сосуды
+  const vcW = 1 - 0.45*Math.min(1,p*gg*(0.45+P.vol));
+  PATHS.vc.forEach(pt=>strokeRange(c,pt,0,1,alpha(T.venous,0.55),17*vcW));
+  PATHS.pulm.forEach(pt=>{ strokeRange(c,pt,0,0.5,alpha(T.venous,0.45),7); strokeRange(c,pt,0.5,1,alpha(T.arterial,0.45),7); });
+  strokeRange(c,PATHS.aorta,0,1,alpha(T.arterial,0.55),15);
+
+  // частицы
+  const dot=(x,y,r,col)=>{c.beginPath();c.arc(x,y,r,0,Math.PI*2);c.fillStyle=col;c.fill();};
+  S.vc.forEach(q=>{ const u=(S.t-q.e)/q.d; const a=at(PATHS.vc[q.path],u); dot(a.x+a.nx*q.j*10*vcW,a.y+a.ny*q.j*10*vcW,2.6,T.venous); });
+  S.pulm.forEach(q=>{ const u=(S.t-q.e)/q.d; if(u<0)return; const a=at(PATHS.pulm[q.path],u); dot(a.x+a.nx*q.j*5,a.y+a.ny*q.j*5,3,q.insp?T.insp:T.exp); });
+  S.aorta.forEach(q=>{ const u=(S.t-q.e)/q.d; if(u<0)return; const a=at(PATHS.aorta,u); dot(a.x+a.nx*q.j*9,a.y+a.ny*q.j*9,3,q.insp?T.insp:T.exp); });
+
+  // камеры
+  const rvFill = rvSVat(p);
+  const nextSrc = S.rv[S.rv.length-P.N] || {sv:1,insp:false};
+  const lvFill = nextSrc.sv*lvBoost(p);
+  const sysV = f<0.35 ? 1-0.17*Math.sin(Math.PI*f/0.35) : 1;
+  const sysA = f>0.8 ? 1-0.1*Math.sin(Math.PI*(f-0.8)/0.2) : 1;
+  const sc = x => 0.72 + 0.28*x;
+  const drawCh=(ch,s,col,fillCol)=>{
+    const w=ch.w*s, h=ch.h*s; rr(c,ch.x-w/2,ch.y-h/2,w,h,Math.min(w,h)*0.32);
+    c.fillStyle=fillCol; c.fill(); c.strokeStyle=col; c.lineWidth=2; c.stroke();
+    c.fillStyle=T.fg; c.font=`600 ${fs()*1.05}px "Golos Text",sans-serif`; c.textAlign="center"; c.textBaseline="middle"; c.fillText(ch.l,ch.x,ch.y);
+  };
+  drawCh(CH.ra, sc(rvFill)*sysA, T.venous, alpha(T.venous,0.28));
+  drawCh(CH.la, sc(lvFill)*sysA, T.arterial, alpha(T.arterial,0.24));
+  drawCh(CH.rv, sc(rvFill)*sysV, T.venous, alpha(T.venous,0.38));
+  drawCh(CH.lv, sc(lvFill)*sysV, T.arterial, alpha(T.arterial,0.34));
+
+  c.font=`500 ${fs()}px "Golos Text",sans-serif`; c.fillStyle=T.muted; c.textAlign="left"; c.textBaseline="alphabetic";
+  c.fillText("полые вены", 44, 432);
+  c.textAlign="right"; c.fillText("аорта → АД", 556, 432);
+
+  // подписи механизмов
+  if (act.has(2)){ tag(c,118,392,"↓ венозный возврат",T.venous); tag(c,150,322,"↑ постнагрузка ПЖ",T.venous); }
+  if (act.has(1)){ tag(c,300,192,"кровь выжимается в ЛП",T.arterial); tag(c,470,322,"↓ постнагрузка ЛЖ",T.arterial); }
+  if (act.has(4)) tag(c,470,355,"↓ преднагрузка ЛЖ",T.insp);
+}
+
+/* ---------- монитор ---------- */
+function drawMonitor(){
+  const c = mctx; c.setTransform(dpr,0,0,dpr,0,0);
+  const w = mW, h = mH, now = S.t, gap = 0.35;
+  c.fillStyle=T["mon-bg"]; c.fillRect(0,0,w,h);
+  const numW = w < 520 ? 92 : 128, px = 8, pw = w - numW - 18;
+  const fr = [0.21,0.21,0.21,0.37], names=["Paw","УО ПЖ","УО ЛЖ","АД"];
+  const lanes=[]; let y=6; const avail=h-12;
+  fr.forEach((k,i)=>{ const hh=avail*k; lanes.push({y:y+4,h:hh-10}); y+=hh; });
+  const xOf = t => px + (((t%WIN)+WIN)%WIN)/WIN*pw;
+  const vis = t => t > now-WIN+gap && t <= now;
+
+  // вдох — заливка
+  c.fillStyle=alpha(T["mon-insp"],0.12);
+  let run=null;
+  const flush=(x1)=>{ if(run!==null){ c.fillRect(run,6,Math.max(1,x1-run),h-12); run=null; } };
+  let lastX=-1;
+  for (const s of S.samples){
+    if(!vis(s.t)) continue;
+    const x=xOf(s.t);
+    if (x<lastX){ flush(lastX); }
+    if (s.insp){ if(run===null) run=x; } else flush(x);
+    lastX=x;
+  }
+  flush(lastX);
+
+  // разделители и подписи
+  c.font=`600 11px "JetBrains Mono",monospace`; c.textBaseline="top"; c.textAlign="left";
+  lanes.forEach((L,i)=>{
+    c.strokeStyle=T["mon-grid"]; c.lineWidth=1;
+    if(i>0){ c.beginPath(); c.moveTo(0,L.y-6); c.lineTo(w,L.y-6); c.stroke(); }
+    c.fillStyle=T["mon-dim"]; c.fillText(names[i], px+4, L.y);
+  });
+  c.beginPath(); c.moveTo(px+pw+8,0); c.lineTo(px+pw+8,h); c.strokeStyle=T["mon-grid"]; c.stroke();
+
+  // трассы
+  const trace=(L,key,lo,hi,col,lw)=>{
+    c.beginPath(); let pen=false, lx=-1;
+    for (const s of S.samples){
+      if(!vis(s.t)){ pen=false; continue; }
+      const x=xOf(s.t), yv=L.y+L.h-(s[key]-lo)/(hi-lo)*L.h;
+      if(!pen || x<lx){ c.moveTo(x,yv); pen=true; } else c.lineTo(x,yv);
+      lx=x;
+    }
+    c.strokeStyle=col; c.lineWidth=lw; c.lineJoin="round"; c.stroke();
+  };
+  const pawHi = Math.max(25, P.pinsp+6);
+  trace(lanes[0],"paw",0,pawHi,T["mon-paw"],2);
+  trace(lanes[3],"abp",35,125,T["mon-abp"],2);
+
+  // столбики УО
+  const lo=0.35, hi=1.3, bw=Math.max(3,pw/(WIN*P.hr/60)*0.42);
+  const yv=(L,v)=>L.y+L.h-(v-lo)/(hi-lo)*L.h;
+  [1,2].forEach(li=>{
+    const L=lanes[li]; c.setLineDash([3,4]); c.strokeStyle=T["mon-dim"]; c.beginPath(); c.moveTo(px,yv(L,1)); c.lineTo(px+pw,yv(L,1)); c.stroke(); c.setLineDash([]);
+  });
+  S.rv.forEach(b=>{ if(!vis(b.t))return; const x=xOf(b.t), L=lanes[1]; c.fillStyle=b.insp?T["mon-insp"]:T["mon-exp"]; c.fillRect(x-bw/2,yv(L,b.sv),bw,L.y+L.h-yv(L,b.sv)); });
+  S.lv.forEach(b=>{ if(!vis(b.t))return; const x=xOf(b.t), L=lanes[2]; c.fillStyle=b.srcInsp?T["mon-insp"]:T["mon-exp"]; c.fillRect(x-bw/2,yv(L,b.sv),bw,L.y+L.h-yv(L,b.sv)); });
+
+  // стрелка транзита: от минимального выброса ПЖ к соответствующему сокращению ЛЖ
+  const byT=new Map(S.lv.map(b=>[b.srcT,b]));
+  let best=null;
+  S.rv.forEach(b=>{ const l=byT.get(b.t); if(!l||!vis(b.t)||!vis(l.t))return; if(xOf(l.t)<=xOf(b.t))return; if(!best||b.sv<best.r.sv) best={r:b,l}; });
+  if(best && best.r.sv<0.995){
+    const x1=xOf(best.r.t), y1=yv(lanes[1],best.r.sv)-4, x2=xOf(best.l.t), y2=yv(lanes[2],best.l.sv)-4;
+    const cx=(x1+x2)/2, cy=Math.min(y1,y2)-18;
+    c.beginPath(); c.moveTo(x1,y1); c.quadraticCurveTo(cx,cy+ (y2-y1)*0.2,x2,y2);
+    c.strokeStyle="rgba(255,255,255,.75)"; c.lineWidth=1.4; c.setLineDash([4,3]); c.stroke(); c.setLineDash([]);
+    const ang=Math.atan2(y2-(cy+(y2-y1)*0.2),x2-cx);
+    c.beginPath(); c.moveTo(x2,y2); c.lineTo(x2-7*Math.cos(ang-0.4),y2-7*Math.sin(ang-0.4)); c.lineTo(x2-7*Math.cos(ang+0.4),y2-7*Math.sin(ang+0.4)); c.closePath(); c.fillStyle="rgba(255,255,255,.85)"; c.fill();
+    c.font=`600 11px "JetBrains Mono",monospace`; c.fillStyle="#fff"; c.textAlign="center"; c.textBaseline="bottom";
+    c.fillText(`транзит ${P.N} цикл. ≈ ${(P.N*60/P.hr).toFixed(1)} с`, Math.min(Math.max(cx,90),px+pw-90), Math.max(lanes[1].y+12, cy+(y2-y1)*0.2-2));
+  }
+
+  // маркеры PPmax / PPmin
+  const Tr=60/P.rr, cyc=S.lv.filter(b=>b.t>now-Tr && vis(b.t));
+  let mx=null, mn=null;
+  cyc.forEach(b=>{ if(!mx||b.pp>mx.pp)mx=b; if(!mn||b.pp<mn.pp)mn=b; });
+  const L3=lanes[3];
+  const mark=(b,lab,up)=>{ const x=xOf(b.t)+0.06*60/P.hr/WIN*pw; const yy=L3.y+L3.h-((56+b.pp)-35)/90*L3.h-8;
+    c.fillStyle="#fff"; c.font=`600 10.5px "JetBrains Mono",monospace`; c.textAlign="center"; c.textBaseline="bottom"; c.fillText(lab,x,yy); };
+  if(mx&&mn&&mx!==mn){ mark(mx,"max"); mark(mn,"min"); }
+
+  // курсор
+  const cx0=xOf(now); c.fillStyle=T["mon-text"]; c.fillRect(cx0,4,1.5,h-8);
+
+  // цифры
+  const nx=px+pw+16; c.textAlign="left"; c.textBaseline="top";
+  const big=(L,lab,val,col,sub)=>{
+    c.fillStyle=T["mon-dim"]; c.font=`600 10.5px "JetBrains Mono",monospace`; c.fillText(lab,nx,L.y);
+    c.fillStyle=col; c.font=`600 ${w<520?18:22}px "JetBrains Mono",monospace`; c.fillText(val,nx,L.y+14);
+    if(sub){ c.fillStyle=T["mon-text"]; c.font=`400 10.5px "JetBrains Mono",monospace`; c.fillText(sub,nx,L.y+(w<520?36:40)); }
+  };
+  const p=pNow(), st=stats();
+  big(lanes[0],"Paw",paw(p).toFixed(0),T["mon-paw"],`${P.pinsp}/${PEEP} PEEP`);
+  const lastRV=S.rv[S.rv.length-1], lastLV=S.lv[S.lv.length-1];
+  big(lanes[1],"УО ПЖ",lastRV?Math.round(lastRV.sv*100)+"%":"—",lastRV&&lastRV.insp?T["mon-insp"]:T["mon-exp"],"от исходного");
+  big(lanes[2],"SVV",st?st.svv.toFixed(0)+"%":"—",lastLV&&lastLV.srcInsp?T["mon-insp"]:T["mon-exp"],lastLV?`УО ${Math.round(lastLV.sv*100)}%`:"");
+  big(lanes[3],"PPV",st?st.ppv.toFixed(0)+"%":"—",T["mon-abp"],st?`PP ${st.max.toFixed(0)}/${st.min.toFixed(0)}`:"");
+  if(st){ c.fillStyle=T["mon-text"]; c.font=`400 10.5px "JetBrains Mono",monospace`; c.fillText(`АД ${(56+st.max+3).toFixed(0)}/${(56+38*0.1).toFixed(0)}`,nx,L3.y+(w<520?52:58)); }
+}
+function stats(){
+  const Tr=60/P.rr, b=S.lv.filter(x=>x.t>S.t-Tr);
+  if(b.length<2) return null;
+  let max=-1e9,min=1e9,smax=-1e9,smin=1e9,ssum=0;
+  b.forEach(x=>{max=Math.max(max,x.pp);min=Math.min(min,x.pp);smax=Math.max(smax,x.sv);smin=Math.min(smin,x.sv);ssum+=x.sv;});
+  return {max,min,ppv:(max-min)/((max+min)/2)*100,svv:(smax-smin)/(ssum/b.length)*100};
+}
+
+/* ---------- DOM ---------- */
+const $ = id => document.getElementById(id);
+const phaseChip=$("phaseChip"), rPaw=$("rPaw"), rPpl=$("rPpl"), rBeats=$("rBeats");
+const stepEls=[...document.querySelectorAll(".step")];
+let lastUi=0;
+function updateUi(force){
+  const tnow=performance.now(); if(!force && tnow-lastUi<120) return; lastUi=tnow;
+  const p=pNow(), insp=phase()<TI;
+  phaseChip.textContent=insp?"ВДОХ":"ВЫДОХ"; phaseChip.className="pill phase "+(insp?"insp":"exp");
+  rPaw.textContent=`Paw ${paw(p).toFixed(1)} см H₂O`;
+  rPpl.textContent=`Ppl ${ppl(p).toFixed(1)} см H₂O`;
+  const Tr=60/P.rr, perC=Tr*P.hr/60;
+  rBeats.textContent=`${(perC*TI).toFixed(1)} / ${(perC*(1-TI)).toFixed(1)} сокращ. за вдох / выдох`;
+  const act=activeSteps(); stepEls.forEach(e=>e.classList.toggle("on",act.has(+e.dataset.s)));
+  const st=stats();
+  $("fPpl").textContent=`${ppl(p).toFixed(1)} см H₂O`;
+  $("fPPmax").textContent=st?st.max.toFixed(1)+" мм рт.ст.":"—";
+  $("fPPmin").textContent=st?st.min.toFixed(1)+" мм рт.ст.":"—";
+  $("fPPV").textContent=st?st.ppv.toFixed(1)+"%":"—";
+  $("fSVV").textContent=st?st.svv.toFixed(1)+"%":"—";
+}
+const sliders={hr:["hr",v=>v],rr:["rr",v=>v],pinsp:["pinsp",v=>v],vol:["vol",v=>v.toFixed(2)],N:["ntr",v=>v]};
+function syncInputs(){
+  Object.entries(sliders).forEach(([k,[id,fmt]])=>{ $(id).value=P[k]; $(id+"O").textContent=fmt(+P[k]); });
+  const ratio=P.hr/P.rr, w=$("ratioWarn");
+  if(ratio<3.6){ w.hidden=false; w.textContent=`ЧСС/ЧД = ${ratio.toFixed(1)}: меньше 3,6 сокращений на вдох-выдох. PPV в таких условиях ненадёжна, провал УО ЛЖ может сместиться на вдох.`; }
+  else w.hidden=true;
+}
+Object.entries(sliders).forEach(([k,[id]])=>{
+  $(id).addEventListener("input",e=>{ P[k]=+e.target.value; syncInputs(); });
+});
+document.querySelectorAll("[data-preset]").forEach(b=>b.addEventListener("click",()=>{ Object.assign(P,PRESETS[b.dataset.preset]); syncInputs(); }));
+$("speed").addEventListener("change",e=>P.speed=+e.target.value);
+$("play").addEventListener("click",()=>{ P.playing=!P.playing; $("play").textContent=P.playing?"Пауза":"Пуск"; });
+
+/* ---------- цикл ---------- */
+function draw(){ drawHeart(); drawMonitor(); updateUi(true); }
+let prev=performance.now();
+function frame(t){
+  const dt=Math.min(0.05,(t-prev)/1000); prev=t;
+  if(P.playing){ simulate(dt*P.speed); drawHeart(); drawMonitor(); updateUi(false); }
+  requestAnimationFrame(frame);
+}
+let reduce=false; try{ reduce=matchMedia("(prefers-reduced-motion: reduce)").matches; }catch(e){}
+syncInputs();
+simulate(WIN+1.6);        // прогрев: монитор заполнен с первого кадра
+resize();
+if(reduce){ P.playing=false; $("play").textContent="Пуск"; }
+draw();
+requestAnimationFrame(frame);
+})();
+</script>
+
+</body>
+</html>
