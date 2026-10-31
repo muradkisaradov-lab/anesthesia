@@ -352,12 +352,13 @@ input[type=range]{width:100%;accent-color:var(--accent);min-height:32px}
 (function(){
 "use strict";
 var KEY="aaha-fluid-calc-v1";
-var DEF={species:"dog",age:"adult",bw:10,tab:"inf",hypo:false,bolusDose:15,bolusMin:15,dehy:8,rehH:"3070",mform:"b",losses:0,enteral:0,drip:"20",
+var DEF={species:"dog",age:"adult",bw:10,tab:"inf",hypo:false,bolusDose:15,bolusMin:15,dehy:8,rehH:"3070",mform:"c",losses:0,enteral:0,drip:"20",
   anRate:"3",anDur:2,bloodLoss:0,k:3.2,kRate:"",kBag:"1000",kStock:"0.537",kMode:"syr",bvDef:0,kDoseSel:0.2,kForK:null,kDil:"2",kSyr:"50",na:160,naTarget:150,naChronic:"1",naFluid:"pl",naRate:"",cl:105,dexTarget:"2.5",dexBag:"1000"};
 var S={};
 try{var raw=localStorage.getItem(KEY);if(raw){S=JSON.parse(raw)||{};}}catch(e){S={};}
 for(var d in DEF){if(!(d in S))S[d]=DEF[d];}
 if(!S.sch3070){S.rehH="3070";S.sch3070=1;}
+if(!S.mformC){S.mform="c";S.mformC=1;}
 if(S.kStock==="0.268"){S.kStock="0.537";S.kDil="2";}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
 
@@ -629,7 +630,7 @@ function syncControls(){
  $("bolus-box").hidden=!S.hypo;
  $("an-cat-box").hidden=sp!=="cat";$("an-dog-note").hidden=sp!=="dog";
  var mf=$("mform"),cur=S.mform;
- mf.innerHTML=["a","b","c"].map(function(k){return '<option value="'+k+'">'+MFORMS[k][sp]+'</option>';}).join("");
+ mf.innerHTML=["c","a","b"].map(function(k){return '<option value="'+k+'">'+MFORMS[k][sp]+'</option>';}).join("");
  mf.value=cur;
  var lbw=n(S.bw),LOSS=[["Полиурия",4,10,"до 30"],["Многократная диарея",1,2],["Многократная рвота",1,2],["Лихорадка, на каждый +1 °C",0.5,0.5],["Тахипноэ, на каждые +10 дыханий/мин",0.3,0.6]];
  $("loss-ref").innerHTML='<div class="t">Ориентиры текущих потерь'+(lbw>0?' для '+f(lbw,1)+' кг':'')+'</div><dl>'+LOSS.map(function(x){return '<dt>'+x[0]+'</dt><dd><span class="nw">'+rng(x[1],x[2],1)+(x[3]?' ('+x[3]+')':'')+' мл/кг/ч</span>'+(lbw>0?' <span class="nw">→ '+rng(x[1]*lbw*24,x[2]*lbw*24,0)+' мл/сут</span>':'')+'</dd>';}).join("")+'</dl><div class="muted" style="margin-top:6px">Ориентировочные значения клиники, не из руководства AAHA. Полиурию и объём рвоты/диареи по возможности измеряйте (табл. 20).</div>';
