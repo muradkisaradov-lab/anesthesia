@@ -1,0 +1,256 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>ИПС препаратов</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap">
+<style>
+/* Layout: sticky "monitor" bar with patient weight; below, drug rows grouped by section, each with a syringe-label colour tab (ISO 26825) */
+:root{
+  --bg:#F2F5F6; --surface:#FFFFFF; --ink:#14212B; --muted:#5D6D78; --line:#D9E1E5;
+  --accent:#0E7C86; --accent-soft:#DDF0F1; --warn:#B4531B; --warn-soft:#FBEADF; --bad:#B42335;
+  --bar:#0F1E27; --bar-ink:#E8F3F4; --bar-muted:#8FA6AE;
+  --c-vaso:#8B5BC6; --c-opi:#3A86D4; --c-ind:#E3BF22; --c-benzo:#EB8A2C; --c-local:#9AA4AD; --c-anti:#2E9F57; --c-a2:#3FAFA6;
+  --f-display:"Onest",system-ui,sans-serif; --f-body:"Onest",system-ui,sans-serif; --f-num:"JetBrains Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0C161C; --surface:#13212A; --ink:#E4EEF1; --muted:#8EA2AB; --line:#24363F;
+  --accent:#4CC3CC; --accent-soft:#163A3F; --warn:#F0A06A; --warn-soft:#3A2516; --bad:#FF8A98;
+  --bar:#071015; --bar-ink:#E8F3F4; --bar-muted:#7E959D; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0C161C; --surface:#13212A; --ink:#E4EEF1; --muted:#8EA2AB; --line:#24363F;
+  --accent:#4CC3CC; --accent-soft:#163A3F; --warn:#F0A06A; --warn-soft:#3A2516; --bad:#FF8A98;
+  --bar:#071015; --bar-ink:#E8F3F4; --bar-muted:#7E959D; color-scheme:dark}
+
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bar)}
+.wrap{max-width:980px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bar);color:var(--bar-ink)}
+header.top .wrap{display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px;padding-block:14px}
+.brand{display:flex;flex-direction:column;gap:2px;min-width:0}
+.brand h1{font-family:var(--f-display);font-weight:700;font-size:20px;margin:0;letter-spacing:-.01em}
+.brand span{font-size:12px;color:var(--bar-muted)}
+.weight{margin-left:auto;display:flex;align-items:center;gap:10px}
+.weight label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--bar-muted)}
+.wbox{display:flex;align-items:baseline;gap:6px;background:#ffffff10;border:1px solid #ffffff26;border-radius:10px;padding:4px 12px}
+.wbox:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px #4cc3cc40}
+#w{width:4.2em;background:transparent;border:0;color:#7FE3EA;font-family:var(--f-num);font-weight:700;font-size:30px;outline:none;text-align:right}
+.wbox b{font-family:var(--f-num);color:var(--bar-muted);font-weight:400}
+.step{display:flex;flex-direction:column;gap:2px}
+.step button{background:#ffffff12;border:1px solid #ffffff22;color:var(--bar-ink);border-radius:6px;width:30px;height:20px;cursor:pointer;font-size:14px;line-height:1}
+.step button:hover{background:#ffffff26}
+nav.sec{display:flex;gap:6px;overflow-x:auto;padding-block:0 12px;scrollbar-width:none}
+nav.sec a{flex:none;color:var(--bar-muted);text-decoration:none;font-size:13px;padding:5px 11px;border:1px solid #ffffff1f;border-radius:999px}
+nav.sec a:hover,nav.sec a:focus-visible{color:var(--bar-ink);border-color:var(--accent);outline:none}
+
+main{padding-block:20px 40px;display:flex;flex-direction:column;gap:28px}
+.notice{background:var(--warn-soft);color:var(--ink);border-radius:10px;padding:10px 14px;font-size:13px}
+.notice b{color:var(--warn)}
+section{scroll-margin-top:130px}
+.sh{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 16px;margin-bottom:10px}
+.sh h2{font-family:var(--f-display);font-size:18px;font-weight:600;margin:0;text-wrap:balance}
+.rule{font-size:13px;color:var(--muted)}
+.rule code{font-family:var(--f-num);font-size:12px;background:var(--accent-soft);color:var(--accent);padding:1px 6px;border-radius:5px;white-space:nowrap}
+
+.snote{background:var(--accent-soft);border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:14px;line-height:1.55}
+.snote b{font-family:var(--f-num);color:var(--accent)}
+.snote span{font-size:12.5px;color:var(--muted)}
+.list{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.row{display:grid;grid-template-columns:10px minmax(0,1.6fr) minmax(0,1.1fr) minmax(0,1.2fr);gap:0 16px;align-items:center;border-top:1px solid var(--line);padding:12px 16px 12px 0}
+.row:first-child{border-top:0}
+.tab{align-self:stretch;background:var(--c);border-radius:0 3px 3px 0}
+.tab.st{background:repeating-linear-gradient(135deg,var(--c) 0 5px,var(--surface) 5px 8px)}
+.nm{min-width:0}
+.nm .n{font-weight:600}
+.nm .c{font-family:var(--f-num);font-size:12px;color:var(--muted)}
+.dose{display:flex;flex-direction:column;gap:3px;min-width:0}
+.dose .rec{font-size:12px;color:var(--muted)}
+.din{display:flex;align-items:center;gap:6px}
+.din input{width:5.2em;font-family:var(--f-num);font-size:15px;padding:5px 8px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--ink)}
+.din input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.din span{font-size:12px;color:var(--muted)}
+.din input.out{border-color:var(--warn)}
+.fixed{font-family:var(--f-num);font-size:14px}
+.res{text-align:right;min-width:0}
+.res .v{font-family:var(--f-num);font-weight:700;font-size:22px;font-variant-numeric:tabular-nums;color:var(--accent);letter-spacing:-.02em}
+.res .v small{font-size:13px;font-weight:400;color:var(--muted);margin-left:3px}
+.res .sub{font-family:var(--f-num);font-size:12px;color:var(--muted)}
+.res .sub b{color:var(--ink);font-weight:600}
+.f{grid-column:2 / -1;font-family:var(--f-num);font-size:11.5px;color:var(--muted);margin-top:6px;overflow-x:auto;white-space:nowrap}
+.flag{display:inline-block;font-size:11px;font-weight:600;padding:1px 7px;border-radius:999px;background:var(--warn-soft);color:var(--warn);margin-top:3px}
+.flag.bad{color:var(--bad)}
+.fix{display:inline-block;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--warn);margin-left:6px}
+
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:14px;height:10px;border-radius:2px;background:var(--c);vertical-align:-1px;margin-right:6px}
+.legend i.st{background:repeating-linear-gradient(135deg,var(--c) 0 3px,var(--surface) 3px 5px)}
+footer{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line);padding-top:16px}
+
+@media (max-width:640px){
+  .row{grid-template-columns:8px minmax(0,1fr) auto;padding-right:14px}
+  .dose{grid-column:2;grid-row:2;margin-top:8px}
+  .res{grid-column:3;grid-row:1 / 3}
+  .f{grid-column:2 / -1}
+  #w{font-size:26px}
+  .weight{margin-left:0}
+}
+@media (prefers-reduced-motion:no-preference){.res .v{transition:color .2s}}
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><h1>ИПС препаратов</h1><span>болюсы, нагрузочные дозы и шприцы для инфузий</span></div>
+    <div class="weight">
+      <label for="w">Масса тела</label>
+      <div class="wbox"><input id="w" type="text" inputmode="decimal" value="10" aria-label="Масса тела, кг"><b>кг</b></div>
+      <div class="step"><button type="button" id="wup" aria-label="Плюс 0,5 кг">+</button><button type="button" id="wdn" aria-label="Минус 0,5 кг">−</button></div>
+    </div>
+  </div>
+  <div class="wrap"><nav class="sec" id="nav"></nav></div>
+</header>
+
+<main class="wrap" id="main">
+  <div class="notice"><b>Пример: 10 кг.</b> Введите массу пациента сверху — все объёмы пересчитаются. Пустое поле дозы берёт нижнюю границу рекомендованного диапазона.</div>
+</main>
+
+<script>
+const C={vaso:'--c-vaso',opi:'--c-opi',ind:'--c-ind',benzo:'--c-benzo',local:'--c-local',anti:'--c-anti',a2:'--c-a2'};
+// conc in mcg/ml; dose units: 'mg'|'mcg' (+ '/min'|'/h' for CRI)
+const S=[
+ {id:'cpr',t:'Реанимация',rule:'фиксированная доза, болюс',items:[
+  {n:'Адреналин 0,01% (1:10)',c:'0,1 мг/мл',cc:100,k:'vaso',type:'fix',d:0.01,u:'mg'},
+  {n:'Адреналин 0,1%',c:'1 мг/мл',cc:1000,k:'vaso',type:'fix',d:0.1,u:'mg'},
+  {n:'Атропин 0,01% (1:10)',c:'0,1 мг/мл',cc:100,k:'anti',type:'fix',d:0.04,u:'mg'},
+  {n:'Атропин 0,1%',c:'1 мг/мл',cc:1000,k:'anti',type:'fix',d:0.04,u:'mg',fixd:true},
+  {n:'Лидокаин 2%',c:'20 мг/мл',cc:20000,k:'local',type:'fix',d:2,u:'mg'}]},
+ {id:'ton',t:'Тоники',rule:'набрать объём в шприц 20 мл, довести NaCl до 20 мл',note:'<b>1 мл/час = 1 мкг/кг/мин</b><br>Например, 10 мкг/кг/мин — это 10 мл/час<br><span>Для норадреналина: 1 мл/час = 0,1 мкг/кг/мин</span>',items:[
+  {n:'Допамин',c:'40 мг/мл',cc:40000,k:'vaso',type:'ton',ref:1,def:5,lo:2,hi:20},
+  {n:'Допамин',c:'5 мг/мл',cc:5000,k:'vaso',type:'ton',ref:1,def:5,lo:2,hi:20},
+  {n:'Добутамин',c:'12,5 мг/мл',cc:12500,k:'vaso',type:'ton',ref:1,def:5,lo:2,hi:20},
+  {n:'Норадреналин',c:'2 мг/мл',cc:2000,k:'vaso',type:'ton',ref:0.1,def:0.1,lo:0.05,hi:2}]},
+ {id:'cri',t:'Анальгетики ИПС',rule:'задайте дозу X и скорость · <code>V = X × масса × время ÷ C</code>',items:[
+  {n:'Лидокаин',c:'100 мг/мл',cc:100000,k:'local',type:'cri',u:'mcg',per:'min',lo:30,hi:50,syr:50,rate:10,editRate:1},
+  {n:'Дексдор (дексмедетомидин)',c:'0,5 мг/мл',cc:500,k:'a2',type:'cri',u:'mcg',per:'h',lo:0.25,hi:1,syr:50,rate:10,editRate:1},
+  {n:'Морфин',c:'10 мг/мл',cc:10000,k:'opi',type:'cri',u:'mg',per:'h',lo:0.1,hi:0.3,syr:20,rate:5,editRate:1},
+  {n:'Фентанил',c:'50 мкг/мл',cc:50,k:'opi',type:'cri',u:'mcg',per:'h',lo:2,hi:20,syr:20,rate:5,editRate:1},
+  {n:'Кетамин',c:'50 мг/мл',cc:50000,k:'ind',type:'cri',u:'mg',per:'h',lo:0.5,hi:1.5,syr:20,rate:5,editRate:1}]},
+ {id:'em',t:'Экстренные препараты',rule:'шприц 20 мл · <code>1 мл/ч = X</code>',items:[
+  {n:'Нитропруссид (нанипрусс)',c:'30 мг/мл',cc:30000,k:'vaso',st:1,type:'cri',u:'mcg',per:'min',lo:1,hi:20,syr:20,rate:1},
+  {n:'Изокет',c:'1 мг/мл',cc:1000,k:'vaso',st:1,type:'cri',u:'mcg',per:'h',lo:12.5,hi:100,syr:20,rate:1},
+  {n:'Эсмолол (бревиблок)',c:'10 мг/мл',cc:10000,k:'vaso',st:1,type:'cri',u:'mcg',per:'min',lo:25,hi:100,syr:20,rate:1}]},
+ {id:'load',t:'Нагрузочные дозы',rule:'болюс, доза X задаётся',items:[
+  {n:'Дексмедетомидин',c:'0,5 мг/мл',cc:500,k:'a2',type:'bol',u:'mcg',lo:0.2,hi:2},
+  {n:'Дексмедетомидин 0.1',c:'0,1 мг/мл',cc:100,k:'a2',type:'bol',u:'mcg',lo:1,hi:8},
+  {n:'Золетил',c:'100 мг/мл',cc:100000,k:'ind',type:'bol',u:'mg',lo:0.5,hi:2},
+  {n:'Мидазолам',c:'5 мг/мл',cc:5000,k:'benzo',type:'bol',u:'mg',lo:0.2,hi:1},
+  {n:'Кетамин',c:'50 мг/мл',cc:50000,k:'ind',type:'bol',u:'mg',lo:2,hi:10},
+  {n:'Лидокаин — кошки',c:'20 мг/мл',cc:20000,k:'local',type:'bol',u:'mg',lo:0.5,hi:0.5},
+  {n:'Лидокаин — собаки',c:'20 мг/мл',cc:20000,k:'local',type:'bol',u:'mg',lo:2,hi:2},
+  {n:'Фентанил',c:'50 мкг/мл',cc:50,k:'opi',type:'bol',u:'mcg',lo:3,hi:5},
+  {n:'Морфин',c:'10 мг/мл',cc:10000,k:'opi',type:'bol',u:'mg',lo:0.1,hi:1},
+  {n:'Пропофол',c:'10 мг/мл',cc:10000,k:'ind',type:'bol',u:'mg',lo:2,hi:10},
+  {n:'Мезатон',c:'50 мкг/мл',cc:50,k:'vaso',type:'bol',u:'mcg',lo:1,hi:5,fixd:true}]},
+ {id:'rev',t:'Антидоты',rule:'болюс, доза X задаётся',items:[
+  {n:'Атипамезол',c:'5 мг/мл',cc:5000,k:'a2',st:1,type:'bol',u:'mcg',lo:50,hi:100},
+  {n:'Буторфанол',c:'2 мг/мл',cc:2000,k:'opi',st:1,type:'bol',u:'mg',lo:0.1,hi:0.2},
+  {n:'Флумазенил',c:'0,1 мг/мл',cc:100,k:'benzo',st:1,type:'bol',u:'mg',lo:0.01,hi:0.04},
+  {n:'Налоксон',c:'0,4 мг/мл',cc:400,k:'opi',st:1,type:'bol',u:'mg',lo:0.01,hi:0.04}]}
+];
+const UN={mg:'мг',mcg:'мкг'}, PER={min:'мин',h:'ч'};
+const fmt=(x,d=2)=>{if(!isFinite(x))return'—';let s=(+x.toFixed(d)).toString();return s.replace('.',',')};
+const fmtN=x=>fmt(x,x<1?3:2);
+const num=s=>{const v=parseFloat(String(s).replace(',','.'));return isNaN(v)?null:v};
+const toMcg=(v,u)=>u==='mg'?v*1000:v;
+const amt=(mcg)=>mcg>=1000?fmt(mcg/1000)+' мг':fmt(mcg)+' мкг';
+
+const main=document.getElementById('main'),nav=document.getElementById('nav');
+let uid=0;
+S.forEach(sec=>{
+  nav.insertAdjacentHTML('beforeend',`<a href="#${sec.id}">${sec.t}</a>`);
+  const el=document.createElement('section');el.id=sec.id;
+  el.innerHTML=`<div class="sh"><h2>${sec.t}</h2><div class="rule">${sec.rule}</div></div>${sec.note?`<div class="snote">${sec.note}</div>`:''}<div class="list"></div>`;
+  const list=el.querySelector('.list');
+  sec.items.forEach(it=>{
+    it.uid='d'+(uid++);
+    const r=document.createElement('div');r.className='row';
+    const fixTag=it.fixd?'<span class="fix" title="В исходной таблице формула ссылалась не на ту ячейку или давала ошибку — здесь исправлено">исправлено</span>':'';
+    let dose='';
+    if(it.type==='fix') dose=`<div class="fixed">${fmt(it.d,3)} ${UN[it.u]}/кг</div>`;
+    else if(it.type==='ton') dose=`<span class="rec">целевая доза</span><div class="din"><input id="${it.uid}" type="text" inputmode="decimal" value="${String(it.def).replace('.',',')}"><span>мкг/кг/мин</span></div>`;
+    else { const unit=UN[it.u]+'/кг'+(it.per?'/'+PER[it.per]:'');
+      const rec=it.lo===it.hi?fmt(it.lo,3):fmt(it.lo,3)+'–'+fmt(it.hi,3);
+      dose=`<span class="rec">рек. ${rec} ${unit}</span><div class="din"><input id="${it.uid}" type="text" inputmode="decimal" placeholder="${String(it.lo).replace('.',',')}"><span>${unit}</span></div>`;
+      if(it.editRate) dose+=`<span class="rec">скорость</span><div class="din"><input id="${it.uid}r" type="text" inputmode="decimal" value="${String(it.rate).replace('.',',')}" aria-label="Скорость инфузии, мл/ч"><span>мл/ч</span></div>`;}
+    r.innerHTML=`<div class="tab${it.st?' st':''}" style="--c:var(${C[it.k]})"></div>
+      <div class="nm"><div class="n">${it.n}${fixTag}</div><div class="c">${it.c}</div></div>
+      <div class="dose">${dose}</div>
+      <div class="res"><div class="v"></div><div class="sub"></div><div class="fl"></div></div>
+      <div class="f"></div>`;
+    it.el=r;list.appendChild(r);
+  });
+  main.appendChild(el);
+});
+main.insertAdjacentHTML('beforeend',`<footer>
+ <div class="legend">
+  <span><i style="--c:var(--c-vaso)"></i>вазопрессоры</span><span><i class="st" style="--c:var(--c-vaso)"></i>гипотензивные</span>
+  <span><i style="--c:var(--c-opi)"></i>опиоиды</span><span><i style="--c:var(--c-ind)"></i>индукция</span>
+  <span><i style="--c:var(--c-benzo)"></i>бензодиазепины</span><span><i style="--c:var(--c-local)"></i>местные анестетики</span>
+  <span><i style="--c:var(--c-anti)"></i>холинолитики</span><span><i style="--c:var(--c-a2)"></i>α2-агонисты</span>
+  <span><i class="st" style="--c:var(--c-opi)"></i>антагонисты (полоса)</span></div>
+ <div>Цвет метки — по стандарту маркировки шприцев ISO 26825 (α2-агонисты в стандарт не входят). Расчёт — вспомогательный инструмент; перед введением сверяйте дозу и концентрацию препарата на флаконе.</div>
+</footer>`);
+
+const wIn=document.getElementById('w');
+try{const s=localStorage.getItem('ips_w');if(s)wIn.value=s}catch(e){}
+function calc(){
+  const W=num(wIn.value);
+  try{localStorage.setItem('ips_w',wIn.value)}catch(e){}
+  const Ws=W==null?'W':fmt(W)+' кг';
+  S.forEach(sec=>sec.items.forEach(it=>{
+    const r=it.el,v=r.querySelector('.v'),sub=r.querySelector('.sub'),f=r.querySelector('.f'),fl=r.querySelector('.fl');
+    fl.innerHTML='';
+    if(!W||W<=0){v.innerHTML='—';sub.textContent='';f.textContent='';return}
+    if(it.type==='fix'){
+      const m=toMcg(it.d,it.u)*W, vol=m/it.cc;
+      v.innerHTML=fmtN(vol)+'<small>мл</small>'; sub.textContent=amt(m);
+      f.textContent=`V = ${Ws} × ${fmt(it.d,3)} ${UN[it.u]}/кг ÷ ${it.c} = ${fmtN(vol)} мл`;
+    } else if(it.type==='ton'){
+      const inp=document.getElementById(it.uid), X=num(inp.value);
+      const m=it.ref*W*60*20, vol=m/it.cc;
+      v.innerHTML=fmtN(vol)+'<small>мл</small>';
+      const rate=X!=null?X/it.ref:null;
+      sub.innerHTML=`${amt(m)} в 20 мл`+(rate!=null?` · <b>${fmt(rate)} мл/ч</b>`:'');
+      f.textContent=`V = ${fmt(it.ref,3)} мкг/кг/мин × ${Ws} × 60 × 20 ч ÷ ${it.c}  ·  скорость = ${X!=null?fmt(X,3):'X'} ÷ ${fmt(it.ref,3)} = ${rate!=null?fmt(rate):'—'} мл/ч`;
+      inp.classList.toggle('out',X!=null&&(X<it.lo||X>it.hi));
+      if(vol>20) fl.innerHTML='<span class="flag bad">объём больше шприца — возьмите концентрат</span>';
+    } else {
+      const inp=document.getElementById(it.uid); let X=num(inp.value); const auto=X==null; if(auto)X=it.lo;
+      const unit=UN[it.u]+'/кг'+(it.per?'/'+PER[it.per]:'');
+      inp.classList.toggle('out',X<it.lo||X>it.hi);
+      if(X<it.lo||X>it.hi) fl.innerHTML='<span class="flag">вне рек. диапазона</span>';
+      if(it.type==='bol'){
+        const m=toMcg(X,it.u)*W, vol=m/it.cc;
+        v.innerHTML=fmtN(vol)+'<small>мл</small>'; sub.textContent=amt(m);
+        f.textContent=`V = ${Ws} × ${fmt(X,3)} ${unit} ÷ ${it.c.split(' ·')[0]} = ${fmtN(vol)} мл`;
+      } else {
+        let rate=it.rate;
+        if(it.editRate){const ri=document.getElementById(it.uid+'r'),rv=num(ri.value);const okR=rv!=null&&rv>0;ri.classList.toggle('out',!okR&&ri.value.trim()!=='');if(okR)rate=rv;}
+        const hrs=it.syr/rate, mpm=it.per==='min'?60:1;
+        const m=toMcg(X,it.u)*W*mpm*hrs, vol=m/it.cc;
+        v.innerHTML=fmtN(vol)+'<small>мл</small>';
+        sub.innerHTML=`${amt(m)} → шприц ${it.syr} мл · <b>${fmt(rate)} мл/ч</b>`+(it.editRate?` · хватит на ${fmt(hrs,1)} ч`:'');
+        f.textContent=`V = ${fmt(X,3)} ${unit} × ${Ws}${mpm>1?' × 60':''} × ${fmt(hrs)} ч ÷ ${it.c} = ${fmtN(vol)} мл`;
+        if(vol>it.syr) fl.innerHTML='<span class="flag bad">объём больше шприца</span>';
+      }
+    }
+  }));
+}
+wIn.addEventListener('input',calc);
+main.addEventListener('input',e=>{if(e.target.matches('input'))calc()});
+const bump=d=>{const v=num(wIn.value)||0;wIn.value=String(Math.max(0,+(v+d).toFixed(2))).replace('.',',');calc()};
+document.getElementById('wup').onclick=()=>bump(0.5);
+document.getElementById('wdn').onclick=()=>bump(-0.5);
+calc();
+</script>
+
+</body></html>

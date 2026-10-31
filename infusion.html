@@ -1,0 +1,686 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Калькулятор инфузионной терапии</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&family=Unbounded:wght@600&display=swap">
+<style>
+/* Layout: patient strip on top, tabs, then inputs (left) and live results (right); one column on phones */
+:root{
+  --bg:#EEF2F5; --surface:#FFFFFF; --surface-2:#E4EDF3; --ink:#14213D; --muted:#4A5873; --line:#C9D6E0;
+  --accent:#24709F; --accent-ink:#FFFFFF; --hero:#14213D; --hero-ink:#FFFFFF; --hero-muted:#A9C9E0;
+  --s1:#24709F; --s2:#8FC1DE; --s3:#D9822B; --s4:#B8486B;
+  --ok:#22693F; --ok-bg:#E2F2E8; --warn:#8A5300; --warn-bg:#FCEFD9; --crit:#A3221B; --crit-bg:#FBE3E1; --info-bg:#E4EDF3;
+  --f-display:"Unbounded","Manrope",system-ui,sans-serif;
+  --f-body:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0D1524; --surface:#15203A; --surface-2:#1C2A49; --ink:#E7EEF6; --muted:#A9B7CC; --line:#2C3B5C;
+  --accent:#72B5DE; --accent-ink:#0D1524; --hero:#0A1120; --hero-ink:#FFFFFF; --hero-muted:#8FB4D2;
+  --s1:#72B5DE; --s2:#2F5F86; --s3:#E9A35E; --s4:#E58AA5;
+  --ok:#7FD39E; --ok-bg:#163A27; --warn:#F2C078; --warn-bg:#3A2C12; --crit:#FF968C; --crit-bg:#401A19; --info-bg:#1C2A49;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0D1524; --surface:#15203A; --surface-2:#1C2A49; --ink:#E7EEF6; --muted:#A9B7CC; --line:#2C3B5C;
+  --accent:#72B5DE; --accent-ink:#0D1524; --hero:#0A1120; --hero-ink:#FFFFFF; --hero-muted:#8FB4D2;
+  --s1:#72B5DE; --s2:#2F5F86; --s3:#E9A35E; --s4:#E58AA5;
+  --ok:#7FD39E; --ok-bg:#163A27; --warn:#F2C078; --warn-bg:#3A2C12; --crit:#FF968C; --crit-bg:#401A19; --info-bg:#1C2A49;
+  color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;
+  padding-block:28px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+h1{font-family:var(--f-display);font-weight:600;font-size:clamp(24px,3.4vw,34px);line-height:1.15;margin:0;text-wrap:balance}
+.sub{color:var(--muted);margin:6px 0 0;max-width:70ch}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px}
+.patient{display:flex;flex-wrap:wrap;gap:16px 28px;align-items:flex-end}
+.lbl{display:block;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.field{display:flex;flex-direction:column;min-width:0}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{padding:9px 14px;cursor:pointer;font-weight:600;font-size:14px;border-right:1px solid var(--line);user-select:none;min-height:40px;display:flex;align-items:center}
+.seg label:last-of-type{border-right:0}
+.seg input:checked+label{background:var(--accent);color:var(--accent-ink)}
+.seg input:focus-visible+label{outline:2px solid var(--accent);outline-offset:-3px}
+.num{display:flex;align-items:center;border:1px solid var(--line);border-radius:10px;background:var(--surface);overflow:hidden}
+.num input,.num select{border:0;background:transparent;color:var(--ink);font:600 16px var(--f-mono);padding:9px 10px;width:100%;min-width:0;min-height:40px}
+.num select{font-family:var(--f-body);font-size:14px}
+.num span{padding:0 10px;color:var(--muted);font-size:13px;white-space:nowrap}
+.num:focus-within{outline:2px solid var(--accent);outline-offset:1px}
+.w-weight{width:150px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tab{border:1px solid var(--line);background:var(--surface);color:var(--ink);font:700 14px var(--f-body);padding:10px 16px;border-radius:999px;cursor:pointer;min-height:44px}
+.tab[aria-selected="true"]{background:var(--hero);color:var(--hero-ink);border-color:var(--hero)}
+.tab:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:18px;align-items:start}
+@media (max-width:880px){.grid{grid-template-columns:minmax(0,1fr)}}
+.stack{display:flex;flex-direction:column;gap:16px;min-width:0}
+.row{display:flex;flex-wrap:wrap;gap:12px}
+.row>.field{flex:1 1 140px}
+.sec-title{font-weight:800;font-size:16px;margin:0 0 12px}
+.hint{color:var(--muted);font-size:13px;margin-top:6px}
+.check{display:flex;gap:10px;align-items:center;font-weight:700;cursor:pointer;min-height:40px}
+.check input{width:20px;height:20px;accent-color:var(--accent)}
+input[type=range]{width:100%;accent-color:var(--accent);min-height:32px}
+.rangehead{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.rangehead b{font-family:var(--f-mono)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip-btn{border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:999px;padding:6px 12px;font:600 13px var(--f-body);cursor:pointer;min-height:34px}
+.chip-btn[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.hero{background:var(--hero);color:var(--hero-ink);border-radius:14px;padding:20px 22px;display:flex;flex-direction:column;gap:14px}
+.hero .k{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--hero-muted);font-weight:700}
+.big{font-family:var(--f-mono);font-weight:700;font-size:clamp(34px,5vw,48px);line-height:1;font-variant-numeric:tabular-nums}
+.big small{font-size:16px;font-weight:500;margin-left:6px;color:var(--hero-muted)}
+.hero-row{display:flex;flex-wrap:wrap;gap:18px 36px}
+.bar{display:flex;height:14px;border-radius:7px;overflow:hidden;background:rgba(255,255,255,.12)}
+.bar i{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--hero-muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.kv{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 16px;align-items:baseline}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0;font-family:var(--f-mono);font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+.formula{font-family:var(--f-mono);font-size:13px;background:var(--surface-2);border-radius:10px;padding:12px 14px;line-height:1.7;overflow-x:auto}
+.formula div{white-space:normal;overflow-wrap:anywhere}
+.formula .c{color:var(--muted);font-family:var(--f-body)}
+.alerts{display:flex;flex-direction:column;gap:8px}
+.alert{display:flex;gap:10px;align-items:flex-start;border-radius:10px;padding:10px 12px;font-size:14px}
+.alert svg{flex:0 0 18px;margin-top:2px}
+.alert.info{background:var(--info-bg)}
+.alert.warn{background:var(--warn-bg);color:var(--warn)}
+.alert.crit{background:var(--crit-bg);color:var(--crit)}
+.alert.ok{background:var(--ok-bg);color:var(--ok)}
+.pill{display:inline-block;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:800;letter-spacing:.03em}
+.pill.ok{background:var(--ok-bg);color:var(--ok)}.pill.warn{background:var(--warn-bg);color:var(--warn)}.pill.crit{background:var(--crit-bg);color:var(--crit)}
+.btn{border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);font:700 14px var(--f-body);border-radius:10px;padding:10px 16px;cursor:pointer;min-height:44px}
+.btn.ghost{background:transparent;color:var(--accent)}
+.copybox{width:100%;min-height:150px;margin-top:10px;font:13px var(--f-mono);border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--surface);color:var(--ink)}
+.nojs{background:var(--crit-bg);color:var(--crit);border-radius:14px;padding:16px 18px;font-size:15px;line-height:1.45}
+.lossref{margin-top:10px;background:var(--surface-2);border-radius:10px;padding:10px 12px;font-size:13px}
+.nw{white-space:nowrap}
+.lossref .t{font-weight:700;margin-bottom:6px}
+.lossref dl{display:grid;grid-template-columns:minmax(0,1fr);gap:2px;margin:0}
+.lossref dt{color:var(--muted);margin-top:6px}.lossref dt:first-child{margin-top:0}
+.lossref dd{margin:0;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.foot{color:var(--muted);font-size:13px;max-width:90ch}
+.sep{height:1px;background:var(--line);margin:14px 0}
+.muted{color:var(--muted)}
+@media (max-width:560px){
+  body{padding-block:16px 32px}
+  .card{padding:14px}
+  .hero{padding:16px}
+  .kv{grid-template-columns:minmax(0,1fr);gap:0}
+  .kv dt{font-size:14px}
+  .kv dd{text-align:left;margin-bottom:10px;font-size:15px}
+  .tab{flex:1 1 auto;text-align:center;padding:10px 12px}
+  .seg label{padding:9px 11px}
+  .w-weight{width:100%}
+  .patient .field{flex:1 1 100%}
+  .row>.field{flex:1 1 120px}
+  .formula{font-size:12.5px;padding:10px 12px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>Калькулятор инфузионной терапии</h1>
+    <p class="sub">Собаки и кошки. Формулы и дозы из руководства AAHA 2024 по инфузионной терапии: реанимация, регидратация, поддержание, анестезия и калий.</p>
+  </header>
+  <noscript><div class="nojs"><b>Калькулятор не может считать в этом окне.</b> Просмотр файлов на телефоне отключает JavaScript. Нажмите «Поделиться» → «Открыть в Safari» (или в Chrome), либо откройте калькулятор по ссылке в Claude.</div></noscript>
+
+  <section class="card patient" aria-label="Пациент">
+    <div class="field">
+      <span class="lbl" id="l-species">Вид</span>
+      <div class="seg" role="radiogroup" aria-labelledby="l-species">
+        <input type="radio" name="species" id="sp-dog" value="dog" checked><label for="sp-dog">Собака</label>
+        <input type="radio" name="species" id="sp-cat" value="cat"><label for="sp-cat">Кошка</label>
+      </div>
+    </div>
+    <div class="field">
+      <span class="lbl" id="l-age">Возраст</span>
+      <div class="seg" role="radiogroup" aria-labelledby="l-age">
+        <input type="radio" name="age" id="ag-adult" value="adult" checked><label for="ag-adult">Взрослый</label>
+        <input type="radio" name="age" id="ag-ped" value="ped"><label for="ag-ped">Щенок / котёнок</label>
+      </div>
+    </div>
+    <div class="field w-weight">
+      <label class="lbl" for="bw">Масса тела</label>
+      <div class="num"><input id="bw" data-k="bw" type="number" value="10" min="0.1" max="120" step="0.1" inputmode="decimal"><span>кг</span></div>
+    </div>
+    <p class="hint" style="margin:0;flex:1 1 220px">Значения по умолчанию — пример (собака 10 кг, дегидратация 8%). Введите данные своего пациента.</p>
+  </section>
+
+  <nav class="tabs" role="tablist" aria-label="Разделы калькулятора">
+    <button class="tab" role="tab" id="t-inf" aria-controls="p-inf" data-tab="inf">Инфузия</button>
+    <button class="tab" role="tab" id="t-an" aria-controls="p-an" data-tab="an">Анестезия</button>
+    <button class="tab" role="tab" id="t-el" aria-controls="p-el" data-tab="el">Калий</button>
+  </nav>
+
+  <!-- ============ ИНФУЗИЯ ============ -->
+  <section id="p-inf" role="tabpanel" aria-labelledby="t-inf" class="grid">
+    <div class="stack">
+      <div class="card">
+        <h2 class="sec-title">Гиповолемия</h2>
+        <label class="check"><input type="checkbox" id="hypo" data-k="hypo"> Есть признаки гиповолемии (табл. 2)</label>
+        <div class="field" style="margin-block:4px 12px;max-width:220px">
+          <label class="lbl" for="bvDef">Дефицит ОЦК</label>
+          <div class="num"><input id="bvDef" data-k="bvDef" type="number" value="0" min="0" max="60" step="1" inputmode="decimal"><span>%</span></div>
+          <p class="hint" style="margin-top:6px">10–15% — лёгкий, 20–25% — средний, &gt;30% — тяжёлый (шок).</p>
+        </div>
+        <div id="bolus-box" hidden>
+          <div class="rangehead"><label class="lbl" for="bolusDose">Болюс буферного изотонического раствора</label><b id="bolusDose-v">15 мл/кг</b></div>
+          <input id="bolusDose" data-k="bolusDose" type="range" min="5" max="20" value="15" step="1">
+          <p class="hint" id="bolusDose-h" style="margin-top:2px">Рекомендация: кошки 5–10, собаки 15–20 мл/кг.</p>
+          <div class="rangehead"><label class="lbl" for="bolusMin">Время введения</label><b id="bolusMin-v">15 мин</b></div>
+          <input id="bolusMin" data-k="bolusMin" type="range" min="15" max="30" value="15" step="5">
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 class="sec-title">Дегидратация</h2>
+        <div class="row">
+          <div class="field">
+            <label class="lbl" for="dehy">Оценка дегидратации</label>
+            <div class="num"><input id="dehy" data-k="dehy" type="number" value="8" min="0" max="15" step="0.5" inputmode="decimal"><span>%</span></div>
+          </div>
+          <div class="field">
+            <label class="lbl" for="rehH">Схема на сутки</label>
+            <div class="num"><select id="rehH" data-k="rehH"><option value="3070" selected>30% за 4 ч, 70% за 20 ч</option><option value="12">Дефицит за 12 ч</option><option value="16">Дефицит за 16 ч</option><option value="18">Дефицит за 18 ч</option><option value="24">Равномерно 24 ч</option></select></div>
+          </div>
+        </div>
+        <div class="chips" role="group" aria-label="Быстрый выбор по табл. 3" id="dehy-chips"></div>
+        <p class="hint" id="dehy-signs"></p>
+      </div>
+
+      <div class="card">
+        <h2 class="sec-title">Поддержание и потери</h2>
+        <div class="field">
+          <label class="lbl" for="mform">Формула поддерживающей потребности</label>
+          <div class="num"><select id="mform" data-k="mform"></select></div>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <div class="field">
+            <label class="lbl" for="losses">Текущие потери</label>
+            <div class="num"><input id="losses" data-k="losses" type="number" value="0" min="0" step="10" inputmode="numeric"><span>мл/сут</span></div>
+          </div>
+          <div class="field">
+            <label class="lbl" for="enteral">Получает не в/в</label>
+            <div class="num"><input id="enteral" data-k="enteral" type="number" value="0" min="0" step="10" inputmode="numeric"><span>мл/сут</span></div>
+          </div>
+        </div>
+        <p class="hint">Потери: рвота, диарея, дренажи. «Не в/в»: вода и жидкий корм через рот или зонд, препараты — вычитается из поддерживающего объёма.</p>
+        <div class="lossref" id="loss-ref"></div>
+      </div>
+
+      <div class="card">
+        <h2 class="sec-title">Капельная система</h2>
+        <div class="field">
+          <span class="lbl" id="l-drip">Капель в 1 мл</span>
+          <div class="seg" role="radiogroup" aria-labelledby="l-drip">
+            <input type="radio" name="drip" id="dr-10" value="10"><label for="dr-10">10</label>
+            <input type="radio" name="drip" id="dr-15" value="15"><label for="dr-15">15</label>
+            <input type="radio" name="drip" id="dr-20" value="20" checked><label for="dr-20">20</label>
+            <input type="radio" name="drip" id="dr-60" value="60"><label for="dr-60">60 (микро)</label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stack" id="res-inf" aria-live="polite"><div class="card muted">Результаты появятся здесь.</div></div>
+  </section>
+
+  <!-- ============ АНЕСТЕЗИЯ ============ -->
+  <section id="p-an" role="tabpanel" aria-labelledby="t-an" class="grid" hidden>
+    <div class="stack">
+      <div class="card">
+        <h2 class="sec-title">Скорость во время анестезии</h2>
+        <div class="field" id="an-cat-box">
+          <span class="lbl" id="l-anRate">Кошка: стартовая скорость</span>
+          <div class="seg" role="radiogroup" aria-labelledby="l-anRate">
+            <input type="radio" name="anRate" id="ar-3" value="3" checked><label for="ar-3">3 мл/кг/ч</label>
+            <input type="radio" name="anRate" id="ar-4" value="4"><label for="ar-4">4 мл/кг/ч</label>
+            <input type="radio" name="anRate" id="ar-5" value="5"><label for="ar-5">5 мл/кг/ч</label>
+          </div>
+        </div>
+        <p class="hint" id="an-dog-note">Собака с нормальной функцией сердца и почек: 5 мл/кг/ч.</p>
+        <div class="row" style="margin-top:12px">
+          <div class="field">
+            <label class="lbl" for="anDur">Длительность анестезии</label>
+            <div class="num"><input id="anDur" data-k="anDur" type="number" value="2" min="0" max="24" step="0.5" inputmode="decimal"><span>ч</span></div>
+          </div>
+          <div class="field">
+            <label class="lbl" for="bloodLoss">Кровопотеря</label>
+            <div class="num"><input id="bloodLoss" data-k="bloodLoss" type="number" value="0" min="0" step="10" inputmode="numeric"><span>мл</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h2 class="sec-title">Гипотензия: СрАД &lt; 60 мм рт. ст.</h2>
+        <ol style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px">
+          <li>Оцените глубину анестезии, снизьте испаритель.</li>
+          <li>ЧСС: брадикардия → антихолинергик.</li>
+          <li>Температура тела, активное согревание.</li>
+          <li>Анальгетики, седация, местные анестетики — чтобы снизить испаритель.</li>
+          <li>Болюс кристаллоида 5 мл/кг за 10 мин.</li>
+          <li>Нет ответа: вазопрессоры/инотропы, коллоид, при кровотечении — кровь.</li>
+        </ol>
+      </div>
+    </div>
+    <div class="stack" id="res-an" aria-live="polite"></div>
+  </section>
+
+  <!-- ============ ЭЛЕКТРОЛИТЫ ============ -->
+  <section id="p-el" role="tabpanel" aria-labelledby="t-el" class="grid" hidden>
+    <div class="stack">
+      <div class="card">
+        <h2 class="sec-title">Калий</h2>
+        <div class="row">
+          <div class="field">
+            <label class="lbl" for="k">K сыворотки</label>
+            <div class="num"><input id="k" data-k="k" type="number" value="3.2" min="0.5" max="8" step="0.1" inputmode="decimal"><span>ммоль/л</span></div>
+          </div>
+          <div class="field">
+            <label class="lbl" for="kStock">Раствор KCl</label>
+            <div class="num"><select id="kStock" data-k="kStock"><option value="0.537" selected>4% — 0,54 ммоль/мл</option><option value="1">7,45% — 1 ммоль/мл</option><option value="2">14,9% — 2 ммоль/мл</option></select></div>
+          </div>
+        </div>
+        <div style="margin-top:12px">
+          <div class="rangehead"><label class="lbl" for="kDoseSel">Доза калия, 0,2–0,5</label><b id="kDoseSel-v">0,2 мэкв/кг/ч</b></div>
+          <input id="kDoseSel" data-k="kDoseSel" type="range" min="0.2" max="0.5" value="0.2" step="0.01">
+          <p class="hint" id="kDoseSel-h" style="margin-top:2px">Максимум — 0,5 мэкв/кг/ч.</p>
+        </div>
+        <div class="field" style="margin-top:8px">
+          <span class="lbl" id="l-kMode">Как вводить</span>
+          <div class="seg" role="radiogroup" aria-labelledby="l-kMode">
+            <input type="radio" name="kMode" id="km-syr" value="syr" checked><label for="km-syr">Отдельно, шприцевой насос</label>
+            <input type="radio" name="kMode" id="km-bag" value="bag"><label for="km-bag">В мешок</label>
+          </div>
+        </div>
+        <div id="k-syr-box">
+          <div class="row" style="margin-top:12px">
+            <div class="field">
+              <label class="lbl" for="kDil">Разведение 0,9% NaCl</label>
+              <div class="num"><select id="kDil" data-k="kDil"><option value="1">Без разведения</option><option value="2" selected>В 2 раза (1:1)</option><option value="3">В 3 раза (1:2)</option><option value="4">В 4 раза (1:3)</option></select></div>
+            </div>
+            <div class="field">
+              <label class="lbl" for="kSyr">Объём шприца</label>
+              <div class="num"><select id="kSyr" data-k="kSyr"><option value="10">10 мл</option><option value="20">20 мл</option><option value="50" selected>50 мл</option><option value="60">60 мл</option></select></div>
+            </div>
+          </div>
+        </div>
+        <div id="k-bag-box" hidden>
+          <div class="row" style="margin-top:12px">
+            <div class="field">
+              <label class="lbl" for="kRate">Скорость инфузии</label>
+              <div class="num"><input id="kRate" data-k="kRate" type="number" min="0" step="1" inputmode="decimal"><span>мл/ч</span></div>
+            </div>
+            <div class="field">
+              <label class="lbl" for="kBag">Объём мешка</label>
+              <div class="num"><select id="kBag" data-k="kBag"><option value="250">250 мл</option><option value="500">500 мл</option><option value="1000" selected>1000 мл</option></select></div>
+            </div>
+          </div>
+        </div>
+        <p class="hint" id="kRate-hint"></p>
+        <div class="row" style="margin-top:8px">
+          <div class="field">
+            <label class="lbl" for="kBag">Объём мешка</label>
+            <div class="num"><select id="kBag" data-k="kBag"><option value="250">250 мл</option><option value="500">500 мл</option><option value="1000" selected>1000 мл</option></select></div>
+          </div>
+          <div class="field">
+            <label class="lbl" for="kStock">Раствор KCl</label>
+            <div class="num"><select id="kStock" data-k="kStock"><option value="0.268">2% (4% KCl + 0,9% NaCl 1:1) — 0,27 мэкв/мл</option><option value="0.537">4% — 0,54 мэкв/мл</option><option value="1">7,45% — 1 мэкв/мл</option><option value="2">14,9% — 2 мэкв/мл</option></select></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="stack" id="res-el" aria-live="polite"></div>
+  </section>
+
+  <p class="foot">Расчёт — ориентир по формулам руководства AAHA 2024 (Pardo M, Spencer E, et al. J Am Anim Hosp Assoc 2024;60:131–163). Назначение и его коррекция — по клинической оценке пациента и динамике: перфузия, масса тела, диурез, электролиты. Калькулятор не заменяет мониторинг.</p>
+</div>
+
+<script>
+(function(){
+"use strict";
+var KEY="aaha-fluid-calc-v1";
+var DEF={species:"dog",age:"adult",bw:10,tab:"inf",hypo:false,bolusDose:15,bolusMin:15,dehy:8,rehH:"3070",mform:"b",losses:0,enteral:0,drip:"20",
+  anRate:"3",anDur:2,bloodLoss:0,k:3.2,kRate:"",kBag:"1000",kStock:"0.537",kMode:"syr",bvDef:0,kDoseSel:0.2,kForK:null,kDil:"2",kSyr:"50",na:160,naTarget:150,naChronic:"1",naFluid:"pl",naRate:"",cl:105,dexTarget:"2.5",dexBag:"1000"};
+var S={};
+try{var raw=localStorage.getItem(KEY);if(raw){S=JSON.parse(raw)||{};}}catch(e){S={};}
+for(var d in DEF){if(!(d in S))S[d]=DEF[d];}
+if(!S.sch3070){S.rehH="3070";S.sch3070=1;}
+if(S.kStock==="0.268"){S.kStock="0.537";S.kDil="2";}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+
+var FLUIDS=[
+ {id:"lrs",name:"Раствор Рингера лактат",na:130},
+ {id:"pl",name:"Plasma-Lyte A / Normosol R",na:140},
+ {id:"ns",name:"0,9% NaCl",na:154},
+ {id:"hns",name:"0,45% NaCl",na:77},
+ {id:"hnsd",name:"0,45% NaCl + 2,5% декстроза",na:77},
+ {id:"m",name:"Plasma-Lyte 56 / Normosol M + 5% декстроза",na:40},
+ {id:"d5",name:"5% декстроза в воде",na:0},
+ {id:"hs3",name:"3% NaCl",na:513}
+];
+var MFORMS={
+ a:{dog:"60 мл/кг/сут",cat:"40 мл/кг/сут"},
+ b:{dog:"132 × МТ^0,75 мл/сут",cat:"80 × МТ^0,75 мл/сут"},
+ c:{dog:"30 × МТ + 70 мл/сут",cat:"30 × МТ + 70 мл/сут"}
+};
+var DEHY=[
+ {max:4.99,t:"<5%: клинически не выявляется."},
+ {max:6,t:"5–6%: некоторое изменение тургора кожи."},
+ {max:8,t:"6–8%: лёгкое снижение тургора, сухость слизистых."},
+ {max:10,t:"8–10%: явное снижение тургора, энофтальм."},
+ {max:12,t:"10–12%: стойкая кожная складка, тусклая роговица, признаки гиповолемии."},
+ {max:99,t:">12%: гиповолемический шок."}
+];
+
+function $(id){return document.getElementById(id);}
+function n(v){var x=parseFloat(String(v).replace(",","."));return isFinite(x)?x:0;}
+function f(x,dg){if(!isFinite(x))return "—";if(dg===undefined)dg=Math.abs(x)<10?1:0;return x.toLocaleString("ru-RU",{minimumFractionDigits:0,maximumFractionDigits:dg});}
+function rng(a,b,dg){return (Math.abs(a-b)<1e-9)?f(a,dg):f(a,dg)+"–"+f(b,dg);}
+var ICON={
+ info:'<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7.5h.01"/></svg>',
+ warn:'<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9.5 17h-19z"/><path d="M12 10v4.5"/><path d="M12 17.5h.01"/></svg>',
+ ok:'<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>'
+};
+ICON.crit=ICON.warn;
+function alerts(list){if(!list.length)return "";return '<div class="alerts">'+list.map(function(a){return '<div class="alert '+a[0]+'">'+ICON[a[0]]+'<div>'+a[1]+'</div></div>';}).join("")+'</div>';}
+
+/* ---------- core calculations ---------- */
+function maintDay(){
+ var bw=n(S.bw),sp=S.species,m;
+ if(S.mform==="a")m=(sp==="dog"?60:40)*bw;
+ else if(S.mform==="b")m=(sp==="dog"?132:80)*Math.pow(bw,0.75);
+ else m=30*bw+70;
+ var mult=S.age==="ped"?(sp==="dog"?3:2.5):1;
+ return {base:m,mult:mult,val:m*mult};
+}
+function infusion(){
+ var bw=n(S.bw),pct=Math.max(0,n(S.dehy)),sch=S.rehH==="3070",H=sch?24:(n(S.rehH)||24);
+ var deficit=bw*pct/100*1000;
+ var md=maintDay();
+ var ivMaintDay=Math.max(0,md.val-Math.max(0,n(S.enteral)));
+ var lossH=Math.max(0,n(S.losses))/24;
+ var bvp=Math.max(0,n(S.bvDef)),bvN=S.species==="cat"?66:88,bvMl=bw*bvN*bvp/100;
+ var rehH=deficit/H, bvH=bvMl/H, maintH=ivMaintDay/24;
+ var p1=rehH+maintH+lossH, p2=maintH+lossH;
+ var total24=Math.min(H,24)*rehH+24*(maintH+lossH);
+ if(sch){p1=0.3*total24/4;p2=0.7*total24/20;}
+ return {bvMl:bvMl,bvH:bvH,bvN:bvN,bvp:bvp,def2:deficit,bv30:bvMl*2,sch:sch,bw:bw,pct:pct,H:H,deficit:deficit,md:md,ivMaintDay:ivMaintDay,rehH:rehH,maintH:maintH,lossH:lossH,p1:p1,p2:p2,total24:total24};
+}
+function bolusRange(){return S.species==="cat"?[5,10]:[15,20];}
+
+/* ---------- renderers ---------- */
+function drip(rate){var fct=n(S.drip);if(rate<=0)return null;var perMin=rate*fct/60;return {perMin:perMin,secPer:60/perMin,perSec:rate*fct/3600};}
+
+function renderInf(){
+ var r=infusion(),bw=r.bw,sp=S.species,out=[],al=[];
+ var br=bolusRange();
+ var bDose=n(S.bolusDose),bMin=n(S.bolusMin),bVol=bDose*bw,bRate=bVol/(bMin/60);
+ if(bw<=0){$("res-inf").innerHTML=alerts([["warn","Введите массу тела пациента."]]);return r;}
+ if(r.pct>12)al.push(["crit","Дегидратация &gt;12% — гиповолемический шок. Начните с болюсов, в/в или в/к доступ."]);
+ else if(r.pct>=10&&!S.hypo)al.push(["warn","При 10–12% дегидратации вероятна гиповолемия: оцените перфузию (табл. 2). Сначала устраняют гиповолемию, затем регидратируют."]);
+ if(S.hypo){var bdv=n(S.bolusDose);if(bdv>br[1])al.push(["info","Болюс "+f(bdv,0)+" мл/кг больше рекомендованного для "+(sp==="cat"?"кошек (5–10":"собак (15–20")+" мл/кг): выше риск перегрузки жидкостью. Оцените перфузию после введения."]);else if(bdv<br[0])al.push(["info","Болюс "+f(bdv,0)+" мл/кг меньше рекомендованного для собак (15–20 мл/кг). Допустимо при риске перегрузки (сердце, почки); оцените ответ и при необходимости повторите."]);}
+ if(S.hypo&&sp==="cat")al.push(["warn","Кошки в шоке быстро дают брадикардию, гипотермию и гипотензию. Болюсы малыми объёмами (например, 5 мл/кг) вместе с активным согреванием — риск перегрузки выше, чем у собак."]);
+ if(S.age==="ped")al.push(["info","Педиатрический пациент: поддерживающая доза ×"+(sp==="dog"?"3":"2,5")+" от взрослой. Следите за глюкозой."]);
+ if(n(S.enteral)>r.md.val)al.push(["info","Энтерально пациент получает больше суточной поддерживающей потребности — в/в поддержание не требуется."]);
+
+ var segs=r.sch?[[r.deficit,"var(--s1)","Дефицит (дегидратация)"],[r.ivMaintDay,"var(--s2)","Поддержание в/в"],[r.lossH*24,"var(--s3)","Текущие потери"]]:[[r.rehH,"var(--s1)","Регидратация"],[r.maintH,"var(--s2)","Поддержание в/в"],[r.lossH,"var(--s3)","Текущие потери"]];
+ var unit=r.sch?" мл/сут":" мл/ч",tot=(r.sch?r.total24:r.p1)||1;
+ var bar='<div class="bar" role="img" aria-label="Состав скорости инфузии">'+segs.map(function(s){return s[0]>0?'<i style="width:'+(s[0]/tot*100)+'%;background:'+s[1]+'"></i>':"";}).join("")+'</div>';
+ var leg='<div class="legend">'+segs.map(function(s){return '<span><i style="background:'+s[1]+'"></i>'+s[2]+': '+f(s[0],r.sch?0:undefined)+unit+'</span>';}).join("")+'</div>';
+ var rehLbl=r.def2>0?("Первые "+f(r.H,0)+" ч"):"Скорость инфузии";
+ if(r.sch)out.push('<div class="hero"><div class="hero-row">'+
+   (r.bvMl>0?'<div><div class="k">Дефицит ОЦК · вводится первым</div><div class="big">'+f(r.bvMl,0)+'<small>мл</small></div></div>':'')+
+   '<div><div class="k">Первые 4 ч · 30%</div><div class="big">'+f(r.p1)+'<small>мл/ч</small></div></div>'+
+   '<div><div class="k">Следующие 20 ч · 70%</div><div class="big">'+f(r.p2)+'<small>мл/ч</small></div></div>'+
+   '<div><div class="k">Всего за 24 ч'+(r.bvMl>0?' (без ОЦК)':'')+'</div><div class="big">'+f(r.total24,0)+'<small>мл</small></div></div>'+
+   '</div><div class="legend"><span>за 4 ч: '+f(0.3*r.total24,0)+' мл</span><span>за 20 ч: '+f(0.7*r.total24,0)+' мл</span></div>'+bar+leg+'</div>');
+ else out.push('<div class="hero"><div class="hero-row">'+(r.bvMl>0?'<div><div class="k">Дефицит ОЦК · вводится первым</div><div class="big">'+f(r.bvMl,0)+'<small>мл</small></div></div>':'')+
+   '<div><div class="k">'+rehLbl+'</div><div class="big">'+f(r.p1)+'<small>мл/ч</small></div></div>'+
+   (r.def2>0&&r.H<24?'<div><div class="k">Далее</div><div class="big">'+f(r.p2)+'<small>мл/ч</small></div></div>':"")+
+   (r.def2>0&&r.H>=24?'<div><div class="k">После регидратации</div><div class="big">'+f(r.p2)+'<small>мл/ч</small></div></div>':"")+
+   '<div><div class="k">Объём за первые 24 ч</div><div class="big">'+f(r.total24,0)+'<small>мл</small></div></div>'+
+   '</div>'+bar+leg+'</div>');
+ out.push(alerts(al));
+
+ if(S.hypo){
+  var io=bRate/bw/60;
+  out.push('<div class="card"><h2 class="sec-title">Болюс при гиповолемии</h2><dl class="kv">'+
+   '<dt>Объём ('+f(bDose,0)+' мл/кг)</dt><dd>'+f(bVol,0)+' мл</dd>'+
+   '<dt>За '+f(bMin,0)+' мин — скорость насоса</dt><dd>'+f(bRate,0)+' мл/ч</dd>'+
+   '<dt>Диапазон для вида</dt><dd>'+f(br[0]*bw,0)+'–'+f(br[1]*bw,0)+' мл</dd></dl>'+
+   '<p class="hint">После каждого болюса оцените ЧСС, ВНК, АД и сознание. Нормализовались — переходите к регидратации; улучшились не полностью — повторите тот же или меньший болюс.</p>'+
+   (io>1?alerts([["info","Через внутрикостный катетер (плечевая/бедренная кость) скорость ограничена ~1 мл/кг/мин ("+f(bw*60,0)+" мл/ч)."]]):"")+'</div>');
+ }
+
+ var bvp=Math.max(0,n(S.bvDef));
+ if(bvp>0){
+  var sev=bvp>=30?["crit","тяжёлый (шок)"]:bvp>25?["warn","средний–тяжёлый"]:bvp>=20?["warn","средний"]:bvp>15?["ok","лёгкий–средний"]:bvp>=10?["ok","лёгкий"]:null;
+  var bvN=sp==="cat"?66:88,bvTot=bw*bvN,bvMl=bvTot*bvp/100,bolV=n(S.bolusDose)*bw;
+  out.push('<div class="card"><h2 class="sec-title">Дефицит ОЦК'+(sev?' <span class="pill '+sev[0]+'">'+sev[1]+'</span>':'')+'</h2><dl class="kv">'+
+   '<dt>ОЦК пациента ('+bvN+' мл/кг)</dt><dd>'+f(bvTot,0)+' мл</dd>'+
+   '<dt>Дефицит '+f(bvp,0)+'%</dt><dd>'+f(bvMl,0)+' мл</dd>'+
+   
+   (S.hypo&&bolV>0?'<dt>Это примерно болюсов по '+f(n(S.bolusDose),0)+' мл/кг ('+f(bolV,0)+' мл)</dt><dd>'+f(bvMl/bolV,1)+'</dd>':'')+
+   '</dl><div class="formula" style="margin-top:12px"><div>Дефицит ОЦК (мл) = МТ × норма ОЦК × % дефицита / 100</div><div>= '+f(bw,1)+' кг × '+bvN+' мл/кг × '+f(bvp,0)+' / 100 = <b>'+f(bvMl,0)+' мл</b></div><div class="c">Норма ОЦК: кошки 66 мл/кг, собаки 88 мл/кг.</div><div class="c">Степень: 10–15% — лёгкий, 20–25% — средний, &gt;30% — тяжёлый (шок).</div></div>'+
+   '<p class="hint">Вводится в начале, отдельно от суточного объёма; скорость введения определяет врач. Затем начинается суточный расчёт. Оценивайте перфузию в конце введения: изотонический кристаллоид через ~45 мин лишь на ~25% остаётся в сосудах.</p></div>');
+ }
+ var mformTxt=MFORMS[S.mform][sp];
+ var lines=[];
+ if(r.bvMl>0)lines.push('<div>Дефицит ОЦК = <b>'+f(r.bvMl,0)+' мл</b>, вводится первым <span class="c">(в суточный объём не входит)</span></div>');
+ if(r.pct>0)lines.push('<div>Дефицит = '+f(bw,1)+' кг × '+f(r.pct/100,3)+' = <b>'+f(r.deficit/1000,2)+' л</b> → '+f(r.deficit,0)+' мл'+(r.sch?'':' / '+f(r.H,0)+' ч = <b>'+f(r.rehH)+' мл/ч</b>')+'</div>');
+ else lines.push('<div class="c">Дефицит: дегидратация не указана.</div>');
+ var mExpr=S.mform==="a"?((sp==="dog"?"60":"40")+" × "+f(bw,1)):S.mform==="b"?((sp==="dog"?"132":"80")+" × "+f(bw,1)+"^0,75"):("30 × "+f(bw,1)+" + 70");
+ lines.push('<div>Поддержание = '+mExpr+' = '+f(r.md.base,0)+' мл/сут'+(r.md.mult>1?' × '+f(r.md.mult,1)+' = <b>'+f(r.md.val,0)+' мл/сут</b>':'')+'</div>');
+ if(n(S.enteral)>0)lines.push('<div>В/в поддержание = '+f(r.md.val,0)+' − '+f(n(S.enteral),0)+' = '+f(r.ivMaintDay,0)+' мл/сут → <b>'+f(r.maintH)+' мл/ч</b></div>');
+ else lines.push('<div>'+f(r.md.val,0)+' мл/сут / 24 ч = <b>'+f(r.maintH)+' мл/ч</b></div>');
+ if(r.lossH>0)lines.push('<div>Потери = '+f(n(S.losses),0)+' мл/сут / 24 = <b>'+f(r.lossH)+' мл/ч</b></div>');
+ if(r.sch){
+  lines.push('<div>Сутки = '+f(r.deficit,0)+' + '+f(r.ivMaintDay,0)+(r.lossH>0?' + '+f(r.lossH*24,0):'')+' = <b>'+f(r.total24,0)+' мл</b></div>');
+  lines.push('<div class="c">дефицит (дегидратация) + поддержание в/в'+(r.lossH>0?' + потери':'')+'</div>');
+  lines.push('<div>Первые 4 ч: 30% × '+f(r.total24,0)+' = '+f(0.3*r.total24,0)+' мл / 4 ч = <b>'+f(r.p1)+' мл/ч</b></div>');
+  lines.push('<div>Следующие 20 ч: 70% × '+f(r.total24,0)+' = '+f(0.7*r.total24,0)+' мл / 20 ч = <b>'+f(r.p2)+' мл/ч</b></div>');
+ } else {
+  lines.push('<div class="c">Итого = регидратация + поддержание + потери = '+f(r.p1)+' мл/ч</div>');
+ }
+ out.push('<div class="card"><h2 class="sec-title">Расчёт</h2><div class="formula">'+lines.join("")+'</div><p class="hint">Формула поддержания: '+mformTxt+'. МТ — масса тела, кг. Оценку дегидратации и план пересматривайте каждые 12–24 ч.</p></div>');
+
+ var d1=drip(r.p1),d2=drip(r.p2);
+ if(d1){
+  out.push('<div class="card"><h2 class="sec-title">Гравитационная система ('+S.drip+' кап/мл)</h2><dl class="kv">'+
+   
+   '<dt>'+(r.sch?'Первые 4 ч, ':'')+f(r.p1)+' мл/ч</dt><dd>'+f(d1.perMin,0)+' кап/мин · 1 капля каждые '+f(d1.secPer,1)+' с</dd>'+
+   ((r.sch||r.def2>0)&&d2&&Math.abs(r.p2-r.p1)>0.01?'<dt>'+(r.sch?'Следующие 20 ч, ':'')+f(r.p2)+' мл/ч</dt><dd>'+f(d2.perMin,0)+' кап/мин · 1 капля каждые '+f(d2.secPer,1)+' с</dd>':"")+
+   '</dl><p class="hint">кап/с = скорость (мл/ч) × капель в мл / 3600. Без сигнализации — контролируйте уровень в мешке каждые 1–2 ч.</p></div>');
+ }
+
+ if(r.pct>0&&r.pct<10&&!S.hypo){
+  out.push('<div class="card"><h2 class="sec-title">Альтернатива: подкожно</h2><dl class="kv">'+
+   '<dt>Доза 20–30 мл/кг, 1–2 раза в день</dt><dd>'+f(20*bw,0)+'–'+f(30*bw,0)+' мл</dd>'+
+   '<dt>Не более 10–20 мл/кг на одно место</dt><dd>'+f(10*bw,0)+'–'+f(20*bw,0)+' мл</dd></dl>'+
+   '<p class="hint">Лактат Рингера, Plasma-Lyte или Normosol R; 0,9% NaCl болезненен из-за низкого pH. Не назначайте п/к пациентам без дегидратации; осторожно при болезнях сердца и гипопротеинемии.</p></div>');
+ }
+
+ out.push('<div class="card"><h2 class="sec-title">Назначение текстом</h2><div class="row"><button type="button" class="btn" id="copy-btn">Скопировать</button><span class="hint" id="copy-msg" role="status"></span></div><textarea class="copybox" id="copy-txt" readonly hidden></textarea></div>');
+ $("res-inf").innerHTML=out.join("");
+ $("copy-btn").addEventListener("click",copyPlan);
+ return r;
+}
+
+function planText(){
+ var r=infusion(),sp=S.species==="dog"?"Собака":"Кошка",t=[];
+ t.push(sp+", "+f(r.bw,1)+" кг"+(S.age==="ped"?", педиатрический":"")+".");
+ if(S.hypo){var v=n(S.bolusDose)*r.bw;t.push("Болюс: буферный изотонический кристаллоид "+f(n(S.bolusDose),0)+" мл/кг = "+f(v,0)+" мл за "+f(n(S.bolusMin),0)+" мин ("+f(v/(n(S.bolusMin)/60),0)+" мл/ч), оценить перфузию.");}
+ if(n(S.bvDef)>0){var bvN2=S.species==="cat"?66:88,bp=n(S.bvDef);t.push("Дефицит ОЦК "+f(bp,0)+"%"+(bp>=30?" (тяжёлый, шок)":bp>25?" (средний–тяжёлый)":bp>=20?" (средний)":bp>15?" (лёгкий–средний)":bp>=10?" (лёгкий)":"")+": "+f(r.bw*bvN2*n(S.bvDef)/100,0)+" мл, вводится первым, до суточного расчёта (ОЦК "+bvN2+" мл/кг).");}
+ if(r.deficit>0)t.push("Дегидратация "+f(r.pct,1)+"%: дефицит "+f(r.deficit,0)+" мл за "+f(r.H,0)+" ч ("+f(r.rehH)+" мл/ч).");
+ t.push("Поддержание: "+f(r.md.val,0)+" мл/сут"+(n(S.enteral)>0?", в/в "+f(r.ivMaintDay,0)+" мл/сут":"")+" ("+f(r.maintH)+" мл/ч).");
+ if(r.lossH>0)t.push("Текущие потери: "+f(n(S.losses),0)+" мл/сут ("+f(r.lossH)+" мл/ч).");
+ if(r.sch)t.push("Всего за 24 ч: "+f(r.total24,0)+" мл. Первые 4 ч (30%): "+f(0.3*r.total24,0)+" мл = "+f(r.p1)+" мл/ч; следующие 20 ч (70%): "+f(0.7*r.total24,0)+" мл = "+f(r.p2)+" мл/ч.");
+ else t.push("Скорость: "+f(r.p1)+" мл/ч"+(r.def2>0?" первые "+f(r.H,0)+" ч, затем "+f(r.p2)+" мл/ч":"")+".");
+ t.push("Мониторинг: масса тела каждые 6–12 ч, ЧСС, ЧДД, СО, ВНК, диурез, признаки перегрузки.");
+ return t.join("\n");
+}
+function copyPlan(){
+ var txt=planText(),ta=$("copy-txt"),msg=$("copy-msg");
+ function fallback(){ta.hidden=false;ta.value=txt;ta.focus();ta.select();msg.textContent="Текст выделен — скопируйте вручную.";}
+ try{navigator.clipboard.writeText(txt).then(function(){msg.textContent="Скопировано";ta.hidden=true;},fallback);}catch(e){fallback();}
+}
+
+function renderAn(r){
+ var bw=n(S.bw),sp=S.species,out=[],al=[];
+ if(bw<=0){$("res-an").innerHTML=alerts([["warn","Введите массу тела пациента."]]);return;}
+ var rate=sp==="dog"?5:n(S.anRate),mlh=rate*bw,dur=Math.max(0,n(S.anDur)),tot=mlh*dur,perKg=rate*dur,hTo20=20/rate;
+ var d=drip(mlh);
+ out.push('<div class="hero"><div class="hero-row">'+
+  '<div><div class="k">Скорость ('+f(rate,0)+' мл/кг/ч)</div><div class="big">'+f(mlh)+'<small>мл/ч</small></div></div>'+
+  '<div><div class="k">За '+f(dur,1)+' ч</div><div class="big">'+f(tot,0)+'<small>мл · '+f(perKg,1)+' мл/кг</small></div></div>'+
+  '</div><div class="legend"><span>20 мл/кг ('+f(20*bw,0)+' мл) наберётся за '+f(hTo20,1)+' ч</span>'+(d?'<span>Капельница '+S.drip+' кап/мл: '+f(d.perMin,0)+' кап/мин</span>':'')+'</div></div>');
+ if(perKg>=20)al.push(["warn","Введено ≥20 мл/кг за одну анестезию — переоцените скорость и объёмный статус. Здоровым животным длительно 5 мл/кг/ч обычно не нужно без значимой кровопотери."]);
+ al.push(["info","Эуволемичным пациентам на короткой инъекционной анестезии в/в жидкости, как правило, не нужны. ХБП IRIS 3–4: не корригируйте гипотензию избыточной скоростью инфузии."]);
+ out.push(alerts(al));
+
+ var cb=5*bw;
+ out.push('<div class="card"><h2 class="sec-title">Если гипотензия сохраняется</h2><dl class="kv">'+
+  '<dt>Болюс кристаллоида 5 мл/кг за 10 мин</dt><dd>'+f(cb,0)+' мл · '+f(cb*6,0)+' мл/ч</dd>'+
+  '<dt>Коллоид 2–5 мл/кг за 10 мин</dt><dd>'+f(2*bw,0)+'–'+f(5*bw,0)+' мл</dd>'+
+  '<dt>Эфедрин 0,05–0,2 мг/кг в/в болюсно</dt><dd>'+rng(0.05*bw,0.2*bw,2)+' мг</dd>'+
+  '<dt>Норадреналин CRI 0,05–1 мкг/кг/мин</dt><dd>'+rng(0.05*bw,1*bw,1)+' мкг/мин</dd>'+
+  '<dt>Добутамин CRI 1–10 мкг/кг/мин</dt><dd>'+rng(1*bw,10*bw,1)+' мкг/мин</dd>'+
+  '<dt>Адреналин CRI 0,05–1 мкг/кг/мин</dt><dd>'+rng(0.05*bw,1*bw,1)+' мкг/мин</dd>'+
+  '</dl><p class="hint">Гипотензия прошла — вернитесь к 3–5 мл/кг/ч, если нет признаков перегрузки.</p></div>');
+
+ var bl=Math.max(0,n(S.bloodLoss));
+ out.push('<div class="card"><h2 class="sec-title">Особые ситуации (вставка 4)</h2><dl class="kv">'+
+  '<dt>Острая кровопотеря: скорость до 10 мл/кг/ч</dt><dd>'+f(10*bw,0)+' мл/ч</dd>'+
+  (bl>0?'<dt>Кристаллоид ×3 к потерянной крови ('+f(bl,0)+' мл)</dt><dd>'+f(bl*3,0)+' мл</dd>':'<dt>Кристаллоид на 1 мл потерянной крови</dt><dd>3 мл</dd>')+
+  '<dt>Собачий альбумин 450 мг/кг → +0,5 г/дл</dt><dd>'+f(0.45*bw,1)+' г</dd>'+
+  '<dt>Плазма ~20–25 мл/кг → +0,5 г/дл альбумина</dt><dd>'+f(20*bw,0)+'–'+f(25*bw,0)+' мл</dd>'+
+  '<dt>Гетакрахмал 1–5 мл/кг/ч (общий белок &lt;4,0 г/дл)</dt><dd>'+rng(bw,5*bw,0)+' мл/ч</dd>'+
+  '<dt>Фуросемид 1–2 мг/кг в/в (отёк лёгких, выпот)</dt><dd>'+rng(bw,2*bw,1)+' мг</dd>'+
+  '<dt>Гипогликемия: 2,5% декстроза</dt><dd>50 мл 50% на 1 л</dd>'+
+  '</dl><p class="hint">Собачий альбумин: начать с 0,5–1 мл/кг за 30 мин, при отсутствии реакций увеличить скорость; введение 3–4 ч. Синтетические коллоиды — спорны, применяйте взвешенно.</p></div>');
+ $("res-an").innerHTML=out.join("");
+}
+
+function kDose(k){if(k<2)return[0.5,0.5];if(k<=2.5)return[0.3,0.4];if(k<=3)return[0.2,0.25];if(k<=3.5)return[0.1,0.15];return[0.05,0.05];}
+function renderEl(r){
+ var bw=n(S.bw),sp=S.species,out=[];
+ if(bw<=0){$("res-el").innerHTML=alerts([["warn","Введите массу тела пациента."]]);return;}
+ /* potassium */
+ var k=n(S.k),dz=kDose(k),stock=n(S.kStock),d=Math.min(0.5,Math.max(0.2,n(S.kDoseSel)));
+ var mmolH=d*bw,mainRate=r.p1;
+ var kAl=[["crit","Никогда не вводите KCl болюсом. Только шприцевой насос с ограничением скорости; предупредите персонал о риске случайного болюса. Предел: 0,5 мэкв/кг/ч = "+f(0.5*bw,2)+" ммоль/ч для этого пациента."]];
+ if(d>dz[1]+1e-9)kAl.push(["info","Доза "+f(d,2)+" мэкв/кг/ч выше стартовой по табл. 11 для K "+f(k,1)+" ммоль/л ("+rng(dz[0],dz[1],2)+"), но не превышает максимум 0,5 мэкв/кг/ч. Контролируйте K и ЭКГ чаще."]);
+ else if(d<dz[0]-1e-9)kAl.push(["info","Доза "+f(d,2)+" мэкв/кг/ч ниже стартовой по табл. 11 для K "+f(k,1)+" ммоль/л ("+rng(dz[0],dz[1],2)+"): калий будет корригироваться медленнее."]);
+ if(S.kMode!=="bag"){
+  var dil=n(S.kDil)||1,stockH=mmolH/stock,rateH=stockH*dil,conc=stock/dil*1000,V=n(S.kSyr),vK=V/dil,vN=V-vK,hrs=rateH>0?V/rateH:0;
+  var veinConc=mainRate>0?mmolH*1000/mainRate:0;
+  $("kRate-hint").textContent="Общая скорость инфузии из вкладки «Инфузия»: "+f(mainRate)+" мл/ч.";
+  out.push('<div class="hero"><div class="k">Калий: K '+f(k,1)+' ммоль/л → '+f(d,2)+' мэкв/кг/ч = '+f(mmolH,2)+' ммоль/ч</div><div class="hero-row">'+
+   '<div><div class="k">Скорость шприцевого насоса</div><div class="big">'+f(rateH,1)+'<small>мл/ч</small></div></div>'+
+   '<div><div class="k">Шприц '+f(V,0)+' мл</div><div class="big">'+f(vK,1)+'<small>мл KCl'+(dil>1?' + '+f(vN,1)+' мл 0,9% NaCl':'')+'</small></div></div>'+
+   '</div><div class="legend"><span>концентрация в шприце '+f(conc,0)+' ммоль/л</span><span>шприца хватит на '+f(hrs,1)+' ч</span><span>1 мэкв K⁺ = 1 ммоль</span></div></div>');
+  var lines=['<div>K в час = '+f(d,2)+' мэкв/кг/ч × '+f(bw,1)+' кг = <b>'+f(mmolH,2)+' ммоль/ч</b></div>',
+   '<div>KCl = '+f(mmolH,2)+' ммоль/ч ÷ '+f(stock,3)+' ммоль/мл = <b>'+f(stockH,2)+' мл/ч</b></div>'];
+  if(dil>1)lines.push('<div>С разведением × '+f(dil,0)+' = <b>'+f(rateH,1)+' мл/ч</b> ('+f(stockH,2)+' мл KCl + '+f(rateH-stockH,2)+' мл NaCl в час)</div>');
+  lines.push('<div>Шприц '+f(V,0)+' мл = '+f(vK,1)+' мл KCl'+(dil>1?' + '+f(vN,1)+' мл 0,9% NaCl':'')+'; '+f(V,0)+' ÷ '+f(rateH,1)+' = <b>'+f(hrs,1)+' ч</b></div>');
+  if(mainRate>0&&rateH>mainRate*0.25)kAl.push(["warn","Раствор KCl — "+f(rateH/mainRate*100,0)+"% общей скорости инфузии ("+f(mainRate)+" мл/ч). Уменьшите основную инфузию на "+f(rateH,1)+" мл/ч или выберите меньшее разведение."]);
+  if(mainRate<=0)kAl.push(["warn","Не вводите концентрированный KCl без основной инфузии: укажите её во вкладке «Инфузия»."]);
+  out.push('<div class="card"><h2 class="sec-title">Расчёт</h2><div class="formula">'+lines.join("")+'</div>'+alerts(kAl)+
+   '<p class="hint">Шприц подключайте как можно ближе к катетеру, параллельно основной инфузии, и не останавливайте основную, пока идёт KCl.'+(mainRate>0?' Если основную уменьшить на объём KCl (общая скорость '+f(mainRate)+' мл/ч), концентрация K в вене ≈ '+f(veinConc,0)+' ммоль/л.':'')+' Стойкая гипокалиемия на фоне KCl — проверьте магний.</p></div>');
+ } else {
+  var rate=S.kRate===""?mainRate:n(S.kRate),bag=n(S.kBag);
+  $("kRate-hint").textContent=S.kRate===""?"Пусто — берётся скорость из вкладки «Инфузия»: "+f(mainRate)+" мл/ч.":"Скорость из вкладки «Инфузия»: "+f(mainRate)+" мл/ч.";
+  if(rate>0){
+   var c=mmolH*1000/rate,m=c*bag/1000,v=m/stock,share=v/bag*100;
+   kAl[0][1]="Никогда не вводите болюсом жидкость с KCl. Перед инфузией переверните и перемешайте мешок. Изменили скорость — пересчитайте концентрацию.";
+   if(share>10)kAl.push(["warn","Объём KCl — "+f(share,0)+"% мешка. Сначала слейте из мешка столько же жидкости ("+f(v,0)+" мл), иначе концентрация будет ниже расчётной. Удобнее отдельная инфузия шприцевым насосом."]);
+   out.push('<div class="hero"><div class="k">Калий: K '+f(k,1)+' ммоль/л → '+f(d,2)+' мэкв/кг/ч</div><div class="hero-row">'+
+    '<div><div class="k">Концентрация в жидкости</div><div class="big">'+f(c,0)+'<small>ммоль/л</small></div></div>'+
+    '<div><div class="k">В мешок '+f(bag,0)+' мл (слить столько же)</div><div class="big">'+f(v,1)+'<small>мл KCl · '+f(m,1)+' ммоль</small></div></div>'+
+    '</div><div class="legend"><span>при скорости '+f(rate)+' мл/ч</span><span>1 мэкв K⁺ = 1 ммоль</span></div></div>');
+   out.push('<div class="card"><div class="formula"><div>ммоль/л = доза × МТ × 1000 / скорость = '+f(d,2)+' × '+f(bw,1)+' × 1000 / '+f(rate)+' = <b>'+f(c,0)+'</b></div></div>'+alerts(kAl)+'<p class="hint">Стойкая гипокалиемия на фоне KCl — проверьте магний.</p></div>');
+  } else out.push(alerts([["warn","Укажите скорость инфузии, чтобы рассчитать добавку калия."]]));
+ }
+
+ $("res-el").innerHTML=out.join("");
+}
+
+/* ---------- inputs ---------- */
+function syncControls(){
+ var sp=S.species,br=bolusRange();
+ var bd=$("bolusDose");bd.min=5;bd.max=20;
+ var v=n(S.bolusDose);if(!(v>=5&&v<=20)){S.bolusDose=br[0];}
+ bd.value=S.bolusDose;
+ $("bolusDose-v").textContent=f(n(S.bolusDose),0)+" мл/кг";$("bolusDose-h").textContent="Рекомендация для "+(sp==="cat"?"кошек: 5–10":"собак: 15–20")+" мл/кг за 15–30 мин.";
+ $("bolusMin").value=S.bolusMin;$("bolusMin-v").textContent=f(n(S.bolusMin),0)+" мин";
+ $("bolus-box").hidden=!S.hypo;
+ $("an-cat-box").hidden=sp!=="cat";$("an-dog-note").hidden=sp!=="dog";
+ var mf=$("mform"),cur=S.mform;
+ mf.innerHTML=["a","b","c"].map(function(k){return '<option value="'+k+'">'+MFORMS[k][sp]+'</option>';}).join("");
+ mf.value=cur;
+ var lbw=n(S.bw),LOSS=[["Полиурия",4,10,"до 30"],["Многократная диарея",1,2],["Многократная рвота",1,2],["Лихорадка, на каждый +1 °C",0.5,0.5],["Тахипноэ, на каждые +10 дыханий/мин",0.3,0.6]];
+ $("loss-ref").innerHTML='<div class="t">Ориентиры текущих потерь'+(lbw>0?' для '+f(lbw,1)+' кг':'')+'</div><dl>'+LOSS.map(function(x){return '<dt>'+x[0]+'</dt><dd><span class="nw">'+rng(x[1],x[2],1)+(x[3]?' ('+x[3]+')':'')+' мл/кг/ч</span>'+(lbw>0?' <span class="nw">→ '+rng(x[1]*lbw*24,x[2]*lbw*24,0)+' мл/сут</span>':'')+'</dd>';}).join("")+'</dl><div class="muted" style="margin-top:6px">Ориентировочные значения клиники, не из руководства AAHA. Полиурию и объём рвоты/диареи по возможности измеряйте (табл. 20).</div>';
+ var pct=n(S.dehy),sign=DEHY.filter(function(x){return pct<=x.max;})[0];
+ $("dehy-signs").textContent=pct>0?"Табл. 3 — "+sign.t:"Дегидратация не указана: расчёт только поддержания.";
+ Array.prototype.forEach.call(document.querySelectorAll("#dehy-chips .chip-btn"),function(b){b.setAttribute("aria-pressed",String(n(b.dataset.v)===pct));});
+ $("kRate").placeholder="авто";
+ var kz=kDose(n(S.k)),ks=$("kDoseSel");ks.min=0.2;ks.max=0.5;
+ if(String(S.kForK)!==String(S.k)){S.kDoseSel=Math.min(0.5,Math.max(0.2,kz[0]));S.kForK=S.k;}
+ S.kDoseSel=Math.min(0.5,Math.max(0.2,n(S.kDoseSel)));
+ ks.value=S.kDoseSel;
+ $("kDoseSel-v").textContent=f(n(S.kDoseSel),2)+" мэкв/кг/ч";$("kDoseSel-h").textContent="Стартовая доза по табл. 11 для K "+f(n(S.k),1)+" ммоль/л: "+rng(kz[0],kz[1],2)+" мэкв/кг/ч. Максимум — 0,5 мэкв/кг/ч.";
+ $("k-syr-box").hidden=S.kMode==="bag";$("k-bag-box").hidden=S.kMode!=="bag";
+}
+function fillInputs(){
+ document.querySelectorAll("[data-k]").forEach(function(el){var k=el.dataset.k;if(el.type==="checkbox")el.checked=!!S[k];else el.value=S[k];});
+ ["species","age","drip","anRate","naChronic","kMode"].forEach(function(name){var r=document.querySelector('input[name="'+name+'"][value="'+S[name]+'"]');if(r)r.checked=true;});
+}
+function renderAll(){
+ syncControls();
+ var r=renderInf();renderAn(r);renderEl(r);
+ save();
+}
+function setTab(t){
+ S.tab=t;
+ ["inf","an","el"].forEach(function(x){var on=x===t;$("t-"+x).setAttribute("aria-selected",String(on));$("t-"+x).tabIndex=on?0:-1;$("p-"+x).hidden=!on;});
+ save();
+}
+
+$("dehy-chips").innerHTML=[[5,"5%"],[6,"6%"],[8,"8%"],[10,"10%"],[12,"12%"]].map(function(c){return '<button type="button" class="chip-btn" data-v="'+c[0]+'">'+c[1]+'</button>';}).join("");
+$("dehy-chips").addEventListener("click",function(e){var b=e.target.closest(".chip-btn");if(!b)return;S.dehy=n(b.dataset.v);$("dehy").value=S.dehy;renderAll();});
+
+document.addEventListener("input",function(e){
+ var el=e.target;
+ if(el.dataset&&el.dataset.k){var k=el.dataset.k;S[k]=el.type==="checkbox"?el.checked:(el.type==="number"&&el.value!==""?el.value:el.value);renderAll();return;}
+ if(el.type==="radio"&&el.name){
+  S[el.name]=el.value;
+  if(el.name==="species"){S.bolusDose=bolusRange()[0];}
+  renderAll();
+ }
+});
+document.addEventListener("change",function(e){if(e.target.type==="checkbox"&&e.target.dataset.k){S[e.target.dataset.k]=e.target.checked;renderAll();}});
+document.querySelectorAll(".tab").forEach(function(b){b.addEventListener("click",function(){setTab(b.dataset.tab);});
+ b.addEventListener("keydown",function(e){var order=["inf","an","el"],i=order.indexOf(S.tab);
+  if(e.key==="ArrowRight"||e.key==="ArrowLeft"){e.preventDefault();var j=(i+(e.key==="ArrowRight"?1:2))%3;setTab(order[j]);$("t-"+order[j]).focus();}});});
+
+fillInputs();
+setTab(S.tab||"inf");
+renderAll();
+})();
+</script>
+
+</body>
+</html>
