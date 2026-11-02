@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Калькулятор оксигенации</title>
+<meta name="description" content="Альвеолярное PO₂, градиент A–a, P/F, S/F, CaO₂ и F-shunt для собак и кошек с интерпретацией по ARDSVet.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --venous:#1E2A4F; --venous-2:#2A3864; --venous-line:#46557F; --on-venous:#F2F4FA; --on-venous-2:#B9C2DA;
+  --art:#B3122E; --art-soft:#F3D6DB;
+  --bg:#F5F6F9; --ink:#141C2B; --muted:#566072; --line:#D8DCE5; --track:#E7EAF0;
+  --ok:#0B6B5F; --warn:#935300; --bad:#B3122E;
+  --zone1:#E9B7BF; --zone2:#F2D2B8; --zone3:#F1E7B8; --zone4:#BFE0D6;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --art:#F0566F; --art-soft:#55212C;
+    --bg:#10141F; --ink:#EDF0F6; --muted:#A3ACBD; --line:#2D3445; --track:#232937;
+    --ok:#4FC7B2; --warn:#E9AE5C; --bad:#F0566F;
+    --zone1:#6B2B37; --zone2:#6B4A2B; --zone3:#5E5729; --zone4:#21574C;
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 "Golos Text",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;font-variant-numeric:tabular-nums}
+sub{font-size:.72em;line-height:0}
+a{color:inherit;text-underline-offset:2px}
+.layout{display:grid;grid-template-columns:minmax(320px,400px) minmax(0,1fr);min-height:100vh}
+.panel{background:var(--venous);color:var(--on-venous);padding:32px 28px}
+.panel-in{position:sticky;top:32px;max-height:calc(100vh - 64px);overflow-y:auto;padding:2px}
+h1{font-size:30px;line-height:1.15;font-weight:700;margin:0 0 6px;letter-spacing:-.01em}
+.lede{margin:0 0 24px;color:var(--on-venous-2);font-size:15px}
+.field{margin-bottom:18px}
+.field label,.legend{display:block;font-size:14px;font-weight:500;margin-bottom:6px}
+.field small{display:block;color:var(--on-venous-2);font-size:13px;margin-top:5px;line-height:1.4}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.input{display:flex;align-items:center;background:var(--venous-2);border:1px solid var(--venous-line);border-radius:6px}
+.input:focus-within{border-color:#fff;outline:2px solid #fff;outline-offset:1px}
+.input input,.input select{flex:1;min-width:0;width:100%;background:transparent;border:0;color:var(--on-venous);font:inherit;font-size:20px;font-weight:600;padding:9px 10px;outline:0}
+.input input::placeholder{color:#7F8CB0;font-weight:400}
+.input span{padding-right:10px;color:var(--on-venous-2);font-size:13px;white-space:nowrap}
+.input select{flex:none;width:auto;font-size:13px;font-weight:400;padding:0 6px 0 0;color:var(--on-venous-2);cursor:pointer}
+.input select option{color:#141C2B}
+.compact input{font-size:16px;font-weight:500;padding:8px 10px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+button{font:inherit;cursor:pointer}
+.chip{background:transparent;color:var(--on-venous);border:1px solid var(--venous-line);border-radius:999px;padding:4px 12px;font-size:14px;min-height:32px}
+.chip[aria-pressed="true"]{background:var(--on-venous);color:var(--venous);border-color:var(--on-venous);font-weight:600}
+button:focus-visible,summary:focus-visible,a:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+.seg{display:inline-flex;border:1px solid var(--venous-line);border-radius:6px;overflow:hidden;margin-bottom:20px}
+.seg button{background:transparent;color:var(--on-venous-2);border:0;padding:6px 12px;font-size:14px;min-height:34px}
+.seg button[aria-pressed="true"]{background:var(--on-venous);color:var(--venous);font-weight:600}
+details.more{border-top:1px solid var(--venous-line);padding:12px 0 2px}
+details.more summary{cursor:pointer;font-weight:500;font-size:15px;padding:2px 0 10px}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.ghost{background:transparent;border:1px solid var(--venous-line);color:var(--on-venous);border-radius:6px;padding:7px 12px;font-size:14px;min-height:36px}
+.main{padding:32px clamp(16px,4vw,56px) 40px;max-width:860px;width:100%}
+.empty{color:var(--muted);font-size:18px;max-width:34em;padding-top:8px}
+h2.verdict{font-size:clamp(26px,3.6vw,36px);line-height:1.15;font-weight:700;margin:0 0 10px;letter-spacing:-.01em}
+.verdict.bad{color:var(--bad)} .verdict.warn{color:var(--warn)} .verdict.ok{color:var(--ok)}
+.reason{margin:0 0 10px;max-width:40em}
+.alert{border-left:4px solid var(--warn);padding:8px 12px;margin:12px 0;background:color-mix(in srgb,var(--warn) 10%,transparent);max-width:44em;font-size:15px}
+h3{font-size:18px;font-weight:600;margin:32px 0 12px}
+.casc{display:grid;grid-template-columns:52px minmax(0,1fr) 92px;gap:10px 10px;align-items:center}
+.casc .n{font-weight:600;font-size:15px}
+.casc .v{font-weight:600;font-size:17px;text-align:right;white-space:nowrap}
+.casc .v small{font-weight:400;color:var(--muted);font-size:12px;display:block;line-height:1.1}
+.track{position:relative;height:34px;background:var(--track);border-radius:3px;overflow:hidden}
+.seg-a{position:absolute;left:0;top:0;bottom:0}
+.b-i{background:var(--venous)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .b-i{background:#6F80B5}}
+.b-A{background:#C25B6D}
+.b-a{background:var(--art)}
+.b-gap{background:repeating-linear-gradient(135deg,var(--art) 0 3px,transparent 3px 8px);border-left:1px solid var(--art);border-right:1px solid var(--art)}
+.seg-label{position:absolute;top:50%;transform:translateY(-50%);font-size:12px;color:var(--ink);padding:0 6px;white-space:nowrap;background:var(--track);border-radius:2px;line-height:1.5}
+.note{color:var(--muted);font-size:14px;margin:10px 0 0;max-width:44em}
+.scale{position:relative;margin-top:30px}
+.zones{display:flex;height:28px;border-radius:3px;overflow:hidden}
+.zones div{font-size:12px;display:flex;align-items:center;justify-content:center;color:var(--ink);text-align:center;min-width:0;overflow:hidden;white-space:nowrap}
+.ticks{position:relative;height:18px;font-size:12px;color:var(--muted);margin-top:4px}
+.ticks span{position:absolute;transform:translateX(-50%)}
+.marker{position:absolute;top:-24px;transform:translateX(-50%);font-weight:700;font-size:15px;white-space:nowrap}
+.marker::after{content:"";position:absolute;left:50%;top:22px;height:32px;border-left:3px solid var(--ink);transform:translateX(-50%)}
+table{border-collapse:collapse;width:100%;margin-top:6px}
+td{border-top:1px solid var(--line);padding:10px 8px 10px 0;vertical-align:top}
+td:first-child{width:44%;font-weight:500}
+td.val{font-weight:600;white-space:nowrap;padding-right:14px;width:1%}
+td.status{font-size:14px;color:var(--muted)}
+.st-ok{color:var(--ok)} .st-warn{color:var(--warn)} .st-bad{color:var(--bad)}
+.foot{margin-top:38px;border-top:1px solid var(--line);padding-top:6px}
+.foot details{border-bottom:1px solid var(--line);padding:10px 0}
+.foot summary{cursor:pointer;font-weight:600}
+.formula{display:block;margin:8px 0;font-family:"Cambria Math","Times New Roman",serif;font-size:17px;overflow-wrap:anywhere}
+.foot li{margin:0 0 8px;font-size:14px}
+.foot ol{padding-left:20px}
+.small{font-size:14px;color:var(--muted)}
+@media (max-width:820px){
+  .layout{grid-template-columns:1fr;min-height:0}
+  .panel{padding:22px 16px}
+  .panel-in{position:static;max-height:none;overflow:visible;padding:0}
+  .main{padding:24px 16px 32px}
+  h1{font-size:26px}
+  td:first-child{width:auto}
+  tr{display:grid;grid-template-columns:1fr auto;border-top:1px solid var(--line);padding:9px 0}
+  td{border:0;padding:0}
+  td.val{padding:0;width:auto}
+  td.status{grid-column:1/-1;margin-top:2px}
+  .casc{grid-template-columns:46px minmax(0,1fr) 78px;gap:8px}
+  .zones div{font-size:11px}
+}
+@media print{.panel{background:none;color:#000}.actions,.seg{display:none}.layout{display:block}}
+</style>
+</head>
+<body>
+<div class="layout">
+  <form class="panel" id="f" autocomplete="off" onsubmit="return false">
+    <div class="panel-in">
+      <h1>Калькулятор оксигенации</h1>
+      <p class="lede">Нужны газы артериальной крови и FiO₂ на момент забора. Венозная проба для этих расчётов не подходит.</p>
+
+      <div class="seg" role="group" aria-label="Единицы давления">
+        <button type="button" data-unit="mmhg" aria-pressed="true">мм рт. ст.</button>
+        <button type="button" data-unit="kpa" aria-pressed="false">кПа</button>
+      </div>
+
+      <div class="field">
+        <label for="fio2">FiO₂</label>
+        <div class="input"><input id="fio2" inputmode="decimal" value="21"><span>%</span></div>
+        <div class="chips" id="chips">
+          <button type="button" class="chip" data-f="21">21</button>
+          <button type="button" class="chip" data-f="30">30</button>
+          <button type="button" class="chip" data-f="40">40</button>
+          <button type="button" class="chip" data-f="60">60</button>
+          <button type="button" class="chip" data-f="100">100</button>
+        </div>
+        <small>При кислородной клетке, маске или канюлях FiO₂ только оценка, поэтому результат приблизительный.</small>
+      </div>
+
+      <div class="pair">
+        <div class="field">
+          <label for="pao2">PaO₂</label>
+          <div class="input"><input id="pao2" inputmode="decimal" placeholder="—"><span class="u">мм рт. ст.</span></div>
+        </div>
+        <div class="field">
+          <label for="paco2">PaCO₂</label>
+          <div class="input"><input id="paco2" inputmode="decimal" placeholder="—"><span class="u">мм рт. ст.</span></div>
+        </div>
+      </div>
+
+      <details class="more">
+        <summary>SpO₂, SaO₂ и гемоглобин</summary>
+        <div class="pair">
+          <div class="field">
+            <label for="spo2">SpO₂</label>
+            <div class="input compact"><input id="spo2" inputmode="decimal" placeholder="—"><span>%</span></div>
+          </div>
+          <div class="field">
+            <label for="sao2">SaO₂</label>
+            <div class="input compact"><input id="sao2" inputmode="decimal" placeholder="—"><span>%</span></div>
+          </div>
+        </div>
+        <div class="field">
+          <label for="hb">Гемоглобин</label>
+          <div class="input compact"><input id="hb" inputmode="decimal" placeholder="—">
+            <select id="hbu" aria-label="Единицы гемоглобина"><option value="gdl">г/дл</option><option value="gl">г/л</option></select>
+          </div>
+          <small>С Hb и SaO₂ появятся CaO₂ и F-shunt.</small>
+        </div>
+      </details>
+
+      <details class="more">
+        <summary>Условия расчёта</summary>
+        <div class="field">
+          <label for="pb">Атмосферное давление, P<sub>атм</sub></label>
+          <div class="input compact"><input id="pb" inputmode="decimal" value="760"><span class="u">мм рт. ст.</span></div>
+        </div>
+        <div class="pair">
+          <div class="field">
+            <label for="ph2o">PH₂O</label>
+            <div class="input compact"><input id="ph2o" inputmode="decimal" value="47"><span class="u">мм рт. ст.</span></div>
+          </div>
+          <div class="field">
+            <label for="r">R</label>
+            <div class="input compact"><input id="r" inputmode="decimal" value="0,8"></div>
+          </div>
+        </div>
+      </details>
+
+      <div class="actions">
+        <button type="button" class="ghost" id="example">Подставить пример</button>
+        <button type="button" class="ghost" id="reset">Очистить</button>
+      </div>
+    </div>
+  </form>
+
+  <main class="main">
+    <div id="out" aria-live="polite"></div>
+
+    <section class="foot">
+      <details>
+        <summary>Формулы</summary>
+        <span class="formula">PIO₂ = FiO₂ × (P<sub>атм</sub> − PH₂O)</span>
+        <span class="formula">PAO₂ = PIO₂ − PaCO₂ / R</span>
+        <span class="formula">Градиент A–a = PAO₂ − PaO₂</span>
+        <span class="formula">P/F = PaO₂ / FiO₂</span>
+        <span class="formula">S/F = SpO₂ / FiO₂ (только при SpO₂ ≤ 97%)</span>
+        <span class="formula">Ожидаемое PaO₂ ≈ 5 × FiO₂ (%)</span>
+        <span class="formula">CaO₂ = 1,31 × Hb × SaO₂ + 0,003 × PaO₂</span>
+        <span class="formula">Cc′O₂ = 1,31 × Hb × 1 + 0,003 × PAO₂</span>
+        <span class="formula">F-shunt = (Cc′O₂ − CaO₂) / (Cc′O₂ − CaO₂ + 3,5) × 100%</span>
+        <p class="small">FiO₂ и SaO₂ подставляются в долях, Hb в г/дл, давления в мм рт. ст. Выше 1000 м над уровнем моря ARDSVet умножает P/F и S/F на P<sub>атм</sub>/760. Калькулятор делает это, когда P<sub>атм</sub> ниже 674 мм рт. ст.</p>
+      </details>
+      <details>
+        <summary>Откуда пороговые значения</summary>
+        <ol>
+          <li>Balakrishnan A, Silverstein DC, et al. ARDS in Veterinary Medicine: The ARDSVet Definitions. J Vet Emerg Crit Care 2025;35(4):327–338. <a href="https://doi.org/10.1111/vec.70016">doi:10.1111/vec.70016</a></li>
+          <li>Clinical Applications of the ARDSVet Definitions. J Vet Emerg Crit Care 2025 (таблица критериев P/F и S/F). <a href="https://doi.org/10.1111/vec.70015">doi:10.1111/vec.70015</a></li>
+          <li>Bellini L, Maney JK, Zanusso F, Dzikiti BT. Front Vet Sci 2025;11:1495543 (формула F-shunt, ориентир ≤ 10%). <a href="https://doi.org/10.3389/fvets.2024.1495543">doi:10.3389/fvets.2024.1495543</a></li>
+          <li>Calabro JM, Prittie JE, Palma DA. J Vet Emerg Crit Care 2013;23(3):280–285 (уравнение альвеолярного газа, S/F у собак). <a href="https://doi.org/10.1111/vec.12050">doi:10.1111/vec.12050</a></li>
+          <li>Case example: blood gas interpretation, dvm360 (градиент A–a на воздухе: норма &lt; 15, допустимо до 25 мм рт. ст.). <a href="https://dvm360.com/view/case-example-1-border-collie-with-possible-foreign-body">dvm360.com</a></li>
+          <li>Boysen S. Acute Respiratory Distress Syndrome. WSAVA Congress 2014 (правило 5 × FiO₂). <a href="https://www.vin.com/doc/?id=7054855">vin.com</a></li>
+        </ol>
+        <p class="small">Границы PaO₂ 80 и 60 мм рт. ст. и гиперкапнии 45 мм рт. ст. — принятые клинические ориентиры. Граница P/F 400 — тоже ориентир, а не критерий из консенсуса.</p>
+      </details>
+      <p class="small" style="margin-top:14px">Расчёт не заменяет клиническую оценку пациента. Данные никуда не отправляются. Канал автора: <a href="https://t.me/abcsofvetanest">t.me/abcsofvetanest</a></p>
+    </section>
+  </main>
+</div>
+
+<script>
+var KPA = 7.50062;      // 1 кПа в мм рт. ст.
+var HUFNER = 1.31;      // мл O2 на 1 г Hb, как в формуле F-shunt (Bellini 2025)
+var ALTITUDE_PB = 674;  // примерно 1000 м над уровнем моря
+
+function calc(i){
+  var f = i.fio2Pct / 100, r = {f:f};
+  r.pio2 = f * (i.pb - i.ph2o);
+  r.pAO2 = r.pio2 - i.paco2 / i.r;
+  r.aa = r.pAO2 - i.pao2;
+  r.aA = r.pAO2 > 0 ? i.pao2 / r.pAO2 : null;
+  r.pf = i.pao2 / f;
+  r.alt = i.pb < ALTITUDE_PB;
+  r.pfC = r.alt ? r.pf * i.pb / 760 : r.pf;
+  r.expected = 5 * i.fio2Pct;
+  r.roomAir = i.fio2Pct <= 22;
+  if (i.spo2 != null){
+    r.sf = i.spo2 / f;
+    r.sfC = r.alt ? r.sf * i.pb / 760 : r.sf;
+    r.sfValid = i.spo2 <= 97;
+  }
+  if (i.hb != null && i.sao2 != null){
+    r.cao2 = HUFNER * i.hb * (i.sao2 / 100) + 0.003 * i.pao2;
+    if (r.pAO2 >= 100){
+      var cc = HUFNER * i.hb + 0.003 * r.pAO2, d = cc - r.cao2;
+      r.shunt = d >= 0 ? d / (d + 3.5) * 100 : null;
+    }
+  }
+  r.hypox = i.pao2 < 60 ? 2 : i.pao2 < 80 ? 1 : 0;
+  r.hypercap = i.paco2 > 45;
+  r.pfZone = r.pfC <= 100 ? 3 : r.pfC <= 300 ? 2 : r.pfC < 400 ? 1 : 0;
+  r.implausible = r.aa < -5 || r.pAO2 <= 0;
+  r.lungsOk = r.roomAir && r.aa < 15 && !r.implausible;
+  return r;
+}
+
+var $ = function(id){ return document.getElementById(id); };
+var unit = 'mmhg';
+function num(id){
+  var s = $(id).value.trim().replace(',', '.');
+  if (s === '') return null;
+  var v = Number(s);
+  return isFinite(v) ? v : NaN;
+}
+function pressure(id){ var v = num(id); return v == null || isNaN(v) ? v : (unit === 'kpa' ? v * KPA : v); }
+function nf(v, d){ return Number(v).toLocaleString('ru-RU', {maximumFractionDigits:d, minimumFractionDigits:0}).replace('-', '−'); }
+function P(v){ return unit === 'kpa' ? nf(v / KPA, 1) : nf(v, 0); }
+function U(){ return unit === 'kpa' ? 'кПа' : 'мм рт. ст.'; }
+function clamp(x){ return Math.max(0, Math.min(100, x)); }
+
+function read(){
+  var hb = num('hb');
+  if (hb != null && !isNaN(hb) && $('hbu').value === 'gl') hb = hb / 10;
+  return {fio2Pct:num('fio2'), pao2:pressure('pao2'), paco2:pressure('paco2'), pb:pressure('pb'),
+          ph2o:pressure('ph2o'), r:num('r'), spo2:num('spo2'), sao2:num('sao2'), hb:hb};
+}
+function problems(i){
+  var e = [];
+  if (i.fio2Pct == null || isNaN(i.fio2Pct) || i.fio2Pct < 21 || i.fio2Pct > 100) e.push('FiO₂ должно быть от 21 до 100%.');
+  if (isNaN(i.pao2) || (i.pao2 != null && i.pao2 <= 0)) e.push('Проверьте PaO₂.');
+  if (isNaN(i.paco2) || (i.paco2 != null && i.paco2 <= 0)) e.push('Проверьте PaCO₂.');
+  if (i.pb == null || isNaN(i.pb) || i.pb < 400 || i.pb > 800) e.push('Атмосферное давление должно быть в пределах 400–800 мм рт. ст.');
+  if (i.ph2o == null || isNaN(i.ph2o) || i.ph2o < 0 || i.ph2o > 100) e.push('Проверьте PH₂O.');
+  if (i.r == null || isNaN(i.r) || i.r < 0.5 || i.r > 1.2) e.push('R должно быть в пределах 0,5–1,2.');
+  if (i.spo2 != null && (isNaN(i.spo2) || i.spo2 < 30 || i.spo2 > 100)) e.push('SpO₂ должно быть от 30 до 100%.');
+  if (i.sao2 != null && (isNaN(i.sao2) || i.sao2 < 30 || i.sao2 > 100)) e.push('SaO₂ должно быть от 30 до 100%.');
+  if (i.hb != null && (isNaN(i.hb) || i.hb <= 0 || i.hb > 30)) e.push('Проверьте гемоглобин и его единицы.');
+  return e;
+}
+
+function verdict(i, r){
+  if (r.implausible) return ['Значения не сходятся', 'warn'];
+  if (r.hypox === 2) return ['Тяжёлая гипоксемия', 'bad'];
+  if (r.hypox === 1) return ['Гипоксемия', 'bad'];
+  if (r.pfZone >= 2 && !r.lungsOk) return ['Гипоксемии нет, но P/F значительно снижен', 'warn'];
+  if (r.pfZone >= 1 && !r.lungsOk) return ['Гипоксемии нет, P/F снижен', 'warn'];
+  if (r.roomAir && r.aa > 25) return ['Гипоксемии нет, градиент A–a повышен', 'warn'];
+  if (r.roomAir && r.aa >= 15) return ['Гипоксемии нет, градиент A–a пограничный', 'warn'];
+  return ['Оксигенация в пределах ориентиров', 'ok'];
+}
+function reasons(i, r){
+  var t = [];
+  if (r.implausible) return t;
+  if (r.hypox){
+    if (r.roomAir){
+      if (r.aa < 15 && r.hypercap) t.push('Градиент A–a в норме, PaCO₂ повышено. Основная причина гипоксемии — гиповентиляция.');
+      else if (r.aa < 15) t.push('Градиент A–a в норме, гиперкапнии нет. Проверьте низкое P<sub>атм</sub> или FiO₂, правильность забора и настройки анализатора.');
+      else if (r.hypercap) t.push('Градиент A–a повышен, PaCO₂ тоже. Вероятно сочетание гиповентиляции и венозной примеси (V/Q-несоответствие, шунт, нарушение диффузии).');
+      else t.push('Градиент A–a повышен, гиперкапнии нет. Думайте о венозной примеси: V/Q-несоответствие, шунт, нарушение диффузии.');
+    } else {
+      t.push('PaO₂ низкое даже на FiO₂ ' + nf(i.fio2Pct, 0) + '%. Это указывает на выраженную венозную примесь. Если рост FiO₂ почти не поднимает PaO₂, вероятен шунт.' + (r.hypercap ? ' Гиперкапния говорит о сопутствующей гиповентиляции.' : ''));
+    }
+  } else if (r.pfZone >= 1 && !r.roomAir){
+    t.push('На FiO₂ ' + nf(i.fio2Pct, 0) + '% ожидалось PaO₂ около ' + P(r.expected) + ' ' + U() + ', поэтому запас оксигенации меньше, чем показывает сатурация. Под наркозом частая причина — ателектазы и V/Q-несоответствие. Снижение FiO₂ или отключение кислорода может привести к гипоксемии.');
+  } else if (r.pfZone >= 1 || (r.roomAir && r.aa >= 15)){
+    t.push('PaO₂ пока выше порога гипоксемии, но газообмен снижен. Стоит оценить динамику.');
+  }
+  if (!r.hypox && r.hypercap) t.push('PaCO₂ выше 45 мм рт. ст.: есть гиповентиляция.');
+  if (r.lungsOk && r.pfZone >= 1) t.push('P/F низкий, но градиент A–a в норме, поэтому критерии ARDSVet здесь не подходят.');
+  if (r.pfZone >= 2 && !r.lungsOk){
+    t.push('Значение попадает в диапазон ARDSVet (' + (r.pfZone === 3 ? 'тяжёлый' : 'лёгкий или умеренный') + '), но одного P/F для диагноза мало. Нужны фактор риска, начало в пределах недели, диффузные инфильтраты и исключение левосторонней ЗСН и перегрузки жидкостью. При ИВЛ также PEEP ≥ 5 см H₂O.');
+  }
+  return t;
+}
+function warnings(i, r){
+  var w = [];
+  if (r.aa < -5) w.push('PaO₂ выше расчётного PAO₂. Проверьте FiO₂, P<sub>атм</sub> и нет ли пузырьков воздуха в шприце.');
+  if (i.spo2 != null && i.spo2 >= 90 && i.pao2 < 50) w.push('SpO₂ ' + nf(i.spo2, 0) + '% не сходится с таким PaO₂. Возможно, проба венозная.');
+  if (i.sao2 != null && i.spo2 != null && Math.abs(i.sao2 - i.spo2) > 5) w.push('SpO₂ и SaO₂ расходятся больше чем на 5%. Проверьте кривую пульсоксиметра, перфузию и положение датчика.');
+  if (r.pAO2 <= 0) w.push('Расчётное PAO₂ не имеет физиологического смысла. Проверьте введённые значения.');
+  return w;
+}
+
+function cascade(i, r){
+  var max = Math.max(r.pio2, i.pao2) || 1;
+  var A = clamp(r.pAO2 / max * 100), a = clamp(i.pao2 / max * 100);
+  var gapL = Math.min(a, A), gapW = Math.abs(A - a);
+  var aaLabel = 'A–a ' + P(r.aa);
+  var labelLeft = (gapL + gapW + 1);
+  var aaHtml = labelLeft < 70
+    ? '<span class="seg-label" style="left:' + labelLeft + '%">' + aaLabel + '</span>'
+    : '';
+  return '<div class="casc" role="img" aria-label="Кислородный каскад: PIO₂ ' + P(r.pio2) + ', PAO₂ ' + P(r.pAO2) + ', PaO₂ ' + P(i.pao2) + ' ' + U() + '">'
+    + '<div class="n">PIO₂</div><div class="track"><div class="seg-a b-i" style="width:' + clamp(r.pio2 / max * 100) + '%"></div></div><div class="v">' + P(r.pio2) + '<small>' + U() + '</small></div>'
+    + '<div class="n">PAO₂</div><div class="track"><div class="seg-a b-A" style="width:' + A + '%"></div></div><div class="v">' + P(r.pAO2) + '<small>' + U() + '</small></div>'
+    + '<div class="n">PaO₂</div><div class="track"><div class="seg-a b-a" style="width:' + a + '%"></div>'
+    + '<div class="seg-a b-gap" style="left:' + gapL + '%;width:' + gapW + '%"></div>' + aaHtml
+    + '</div><div class="v">' + P(i.pao2) + '<small>' + U() + '</small></div>'
+    + '</div><p class="note">Штрихованный участок — градиент A–a (' + P(r.aa) + ' ' + U() + '). Падение от PIO₂ к PAO₂ равно PaCO₂/R (' + P(i.paco2 / i.r) + ' ' + U() + ').</p>';
+}
+function pfScale(r){
+  var MAX = 600, pos = clamp(r.pfC / MAX * 100);
+  var w = function(a, b){ return (b - a) / MAX * 100; };
+  var mpos = Math.max(5, Math.min(95, pos));
+  return '<div class="scale" role="img" aria-label="P/F ' + nf(r.pfC, 0) + ' на шкале от 0 до 600">'
+    + '<div class="marker" style="left:' + pos + '%;' + (pos !== mpos ? 'transform:translateX(-' + (pos > 50 ? 100 : 0) + '%)' : '') + '">' + nf(r.pfC, 0) + '</div>'
+    + '<div class="zones">'
+    + '<div style="width:' + w(0,100) + '%;background:var(--zone1)">тяж.</div>'
+    + '<div style="width:' + w(100,300) + '%;background:var(--zone2)">лёгк./умер.</div>'
+    + '<div style="width:' + w(300,400) + '%;background:var(--zone3)">снижен</div>'
+    + '<div style="width:' + w(400,600) + '%;background:var(--zone4)">норма</div></div>'
+    + '<div class="ticks"><span style="left:' + w(0,100) + '%">100</span><span style="left:' + w(0,300) + '%">300</span><span style="left:' + w(0,400) + '%">400</span><span style="left:' + w(0,500) + '%">500</span></div></div>'
+    + (r.alt ? '<p class="note">P/F с поправкой на высоту. Без поправки: ' + nf(r.pf, 0) + '.</p>' : '');
+}
+function row(name, val, cls, status){
+  return '<tr><td>' + name + '</td><td class="val">' + val + '</td><td class="status"><span class="' + (cls || '') + '">' + (status || '') + '</span></td></tr>';
+}
+function table(i, r){
+  var h = '<table>';
+  var aaS, aaC;
+  if (r.implausible){ aaS = 'Отрицательный градиент невозможен: проверьте данные.'; aaC = 'st-warn'; }
+  else if (!r.roomAir){ aaS = 'Порог для воздуха здесь неприменим: градиент растёт вместе с FiO₂. Смотрите P/F.'; aaC = ''; }
+  else if (r.aa < 15){ aaS = 'Норма на воздухе: < 15 мм рт. ст.'; aaC = 'st-ok'; }
+  else if (r.aa <= 25){ aaS = 'Пограничное значение: 15–25 мм рт. ст.'; aaC = 'st-warn'; }
+  else { aaS = 'Повышен: > 25 мм рт. ст.'; aaC = 'st-bad'; }
+  h += row('Градиент A–a', P(r.aa) + ' ' + U(), aaC, aaS);
+  var pfS = ['Ориентир нормы: ≥ 400', 'Снижен, но выше диапазона ARDSVet', 'ARDSVet: > 100 и ≤ 300, лёгкий или умеренный', 'ARDSVet: ≤ 100, тяжёлый'][r.pfZone];
+  var pfC = ['st-ok','st-warn','st-bad','st-bad'][r.pfZone];
+  if (r.lungsOk && r.pfZone >= 1){ pfS = 'Снижен при нормальном градиенте A–a: причина не в газообмене'; pfC = 'st-warn'; }
+  h += row('P/F', nf(r.pfC, 0) + ' мм рт. ст.', pfC, pfS);
+  h += row('PaO₂', P(i.pao2) + ' ' + U(), ['st-ok','st-bad','st-bad'][r.hypox], ['Гипоксемии нет', 'Гипоксемия: < 80 мм рт. ст.', 'Тяжёлая гипоксемия: < 60 мм рт. ст.'][r.hypox]);
+  if (!r.roomAir) h += row('Ожидаемое PaO₂', '≈ ' + P(r.expected) + ' ' + U(), '', 'Правило: 5 × FiO₂ (%)');
+  if (r.aA != null) h += row('PaO₂/PAO₂', nf(r.aA, 2), '', 'Меньше зависит от FiO₂, чем градиент A–a. Удобно для динамики.');
+  if (r.sf != null){
+    if (r.sfValid){
+      var sfZ = r.sfC <= 150 ? 2 : r.sfC <= 315 ? 1 : 0;
+      h += row('S/F', nf(r.sfC, 0), ['st-ok','st-bad','st-bad'][sfZ], ['Выше диапазона ARDSVet', 'ARDSVet: > 150 и ≤ 315, лёгкий или умеренный', 'ARDSVet: ≤ 150, тяжёлый'][sfZ]);
+    } else {
+      h += row('S/F', '—', '', 'Не оценивается при SpO₂ выше 97%: сатурация уже не отражает PaO₂.');
+    }
+  }
+  if (r.cao2 != null) h += row('CaO₂', nf(r.cao2, 1) + ' мл/дл', '', 'Содержание кислорода в артериальной крови');
+  if (r.cao2 != null){
+    if (r.shunt != null) h += row('F-shunt', nf(r.shunt, 0) + '%', r.shunt <= 10 ? 'st-ok' : 'st-warn', 'Ориентир для здоровых собак под наркозом: ≤ 10%. Оценка венозной примеси, у собак не сверялась с инвазивным измерением.');
+    else if (r.pAO2 < 100) h += row('F-shunt', '—', '', 'Не считается при PAO₂ < 100 мм рт. ст.: формула предполагает полное насыщение в капилляре.');
+    else h += row('F-shunt', '—', 'st-warn', 'SaO₂ не сходится с расчётом. Проверьте значения.');
+  }
+  return h + '</table>';
+}
+
+function render(){
+  var i = read(), out = $('out');
+  syncChips(i.fio2Pct);
+  var errs = problems(i);
+  if (errs.length){ out.innerHTML = '<div class="alert">' + errs.join('<br>') + '</div>'; return; }
+  if (i.pao2 == null || i.paco2 == null){
+    out.innerHTML = '<p class="empty">Введите PaO₂ и PaCO₂, и здесь появятся градиент A–a, P/F и разбор возможной причины гипоксемии.</p>';
+    return;
+  }
+  var r = calc(i), v = verdict(i, r), wr = warnings(i, r);
+  var html = '<h2 class="verdict ' + v[1] + '">' + v[0] + '</h2>';
+  wr.forEach(function(t){ html += '<div class="alert">' + t + '</div>'; });
+  reasons(i, r).forEach(function(t){ html += '<p class="reason">' + t + '</p>'; });
+  html += '<h3>Кислородный каскад</h3>' + cascade(i, r);
+  html += '<h3>P/F на шкале ARDSVet</h3>' + pfScale(r);
+  html += '<h3>Показатели</h3>' + table(i, r);
+  out.innerHTML = html;
+}
+function syncChips(f){
+  document.querySelectorAll('#chips .chip').forEach(function(c){ c.setAttribute('aria-pressed', String(Number(c.dataset.f) === f)); });
+}
+function setUnit(u){
+  if (u === unit) return;
+  ['pao2','paco2','pb','ph2o'].forEach(function(id){
+    var v = num(id);
+    if (v == null || isNaN(v)) return;
+    var conv = u === 'kpa' ? v / KPA : v * KPA;
+    $(id).value = String(Math.round(conv * (u === 'kpa' ? 100 : 1)) / (u === 'kpa' ? 100 : 1)).replace('.', ',');
+  });
+  unit = u;
+  document.querySelectorAll('.u').forEach(function(s){ s.textContent = U(); });
+  document.querySelectorAll('[data-unit]').forEach(function(b){ b.setAttribute('aria-pressed', String(b.dataset.unit === u)); });
+  render();
+}
+function defaults(){
+  setUnit('mmhg');
+  $('fio2').value = '21'; $('pb').value = '760'; $('ph2o').value = '47'; $('r').value = '0,8';
+  ['pao2','paco2','spo2','sao2','hb'].forEach(function(id){ $(id).value = ''; });
+  $('hbu').value = 'gdl';
+}
+$('f').addEventListener('input', render);
+document.querySelectorAll('[data-unit]').forEach(function(b){ b.addEventListener('click', function(){ setUnit(b.dataset.unit); }); });
+$('chips').addEventListener('click', function(e){
+  if (e.target.dataset.f){ $('fio2').value = e.target.dataset.f; render(); }
+});
+$('example').addEventListener('click', function(){
+  defaults();
+  $('fio2').value = '40'; $('pao2').value = '112'; $('paco2').value = '52';
+  $('spo2').value = '98'; $('sao2').value = '98'; $('hb').value = '13';
+  render();
+});
+$('reset').addEventListener('click', function(){ defaults(); render(); });
+render();
+if (typeof module !== 'undefined') module.exports = {calc: calc};
+</script>
+</body>
+</html>
